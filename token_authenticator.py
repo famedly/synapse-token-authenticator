@@ -22,6 +22,8 @@ import os
 import base64
 import re
 
+logger = logging.getLogger(__name__)
+
 class TokenAuthenticator(object):
 	__version__ = "0.0.0"
 
@@ -38,13 +40,13 @@ class TokenAuthenticator(object):
 			with open(self.config.keyfile, "r") as f:
 				self.key = jwk.JWK.from_pem(f.read())
 
-	def get_supported_login_types():
-		return {"m.login.token": ("token")}
+	def get_supported_login_types(self):
+		return {"com.famedly.login.token": ("token",)}
 
 	@defer.inlineCallbacks
-	def check_auth(username, login_type, login_dict):
+	def check_auth(self, username_provided, login_type, login_dict):
 		logger.info("Receiving auth request")
-		if login_type != "m.login.token":
+		if login_type != "com.famedly.login.token":
 			logger.info("Wrong login type")
 			defer.returnValue(None)
 			return
@@ -55,37 +57,46 @@ class TokenAuthenticator(object):
 			return
 
 		check_claims = {}
-		if this.config.require_expiracy:
+		if self.config.require_expiracy:
 			check_claims["exp"] = None
 		try:
 			# OK, let's verify the token
 			t = jwt.JWT(jwt=token, key=self.key, check_claims=check_claims)
-		except JWException:
-			logger.info("Invalid token", JWException)
+		except JWException as e:
+			logger.info("Invalid token", e)
 			defer.returnValue(None)
 			return
 		payload = json_decode(t.claims)
-		if "user_id" not in payload:
+		if "sub" not in payload:
 			logger.info("Missing user_id field")
 			defer.returnValue(None)
 			return
-		user_id = payload["user_id"]
-		if not isinstance(user_id, str):
+		user_id_or_localpart = payload["sub"]
+		if not isinstance(user_id_or_localpart, str):
 			logger.info("user_id isn't a string")
 			defer.returnValue(None)
 			return
 
-		if user_id[0] != "@":
-			logger.info("user_id isn't a full mxid")
+		if user_id_or_localpart[0] == "@":
+			if not user_id_or_localpart.endswith(":" + self.account_handler.hs.hostname):
+				logger.info("user_id isn't for our homeserver")
+				defer.returnValue(None)
+				return
+			localpart = user_id_or_localpart[1:-len(self.account_handler.hs.hostname)-1]
+		else:
+			localpart = user_id_or_localpart
+
+		valid_localpart = not bool(re.compile(r"[^a-zA-Z0-9-.=_/]").search(localpart))
+		if not valid_localpart:
+			logger.info("Invalid localpart")
 			defer.returnValue(None)
 			return
 
-		if not user_id.endswith(":" + self.account_handler.hs.hostname):
-			logger.info("user_id isn't for our homeserver")
+		user_id = "@" + localpart + ":" + self.account_handler.hs.hostname
+		if user_id != username_provided and localpart != username_provided:
+			logger.info("Non-matching user")
 			defer.returnValue(None)
 			return
-
-		localpart = user_id[1:-len(self.account_handler.hs.hostname)-1]
 
 		user_exists = yield self.account_handler.check_user_exists(user_id)
 		if not user_exists and not self.config.allow_registration:
@@ -94,11 +105,6 @@ class TokenAuthenticator(object):
 			return
 
 		if not user_exists:
-			valid_localpart = not bool(re.compile(r"[^a-zA-Z0-9-.=_/]").search(localpart))
-			if not valid_localpart:
-				logger.info("Invalid localpart")
-				defer.returnValue(None)
-				return
 			logger.info("User doesn't exist, registering it...")
 			user_id = yield self.register_user(localpart)
 		logger.info("All done and valid, logging in!")
@@ -111,7 +117,7 @@ class TokenAuthenticator(object):
 		_config = _TokenAuthenticatorConfig()
 		_config.secret = config.get("secret", False)
 		_config.keyfile = config.get("keyfile", False)
-		if not _config.secret or not _config.keyfile:
+		if not _config.secret and not _config.keyfile:
 			raise Exception("Missing secret or keyfile")
 		if _config.keyfile and not os.path.exists(_config.keyfile):
 			raise Exception("Keyfile doesn't exist")
