@@ -50,18 +50,22 @@ class TokenAuthenticator(object):
 			logger.info("Wrong login type")
 			defer.returnValue(None)
 			return
-		token = login_dict["token"]
-		if not token:
+		if "token" not in login_dict:
 			logger.info("Missing token")
 			defer.returnValue(None)
 			return
+		token = login_dict["token"]
 
 		check_claims = {}
 		if self.config.require_expiracy:
 			check_claims["exp"] = None
 		try:
 			# OK, let's verify the token
-			t = jwt.JWT(jwt=token, key=self.key, check_claims=check_claims)
+			t = jwt.JWT(jwt=token, key=self.key, check_claims=check_claims, algs=[self.config.algorithm])
+		except ValueError as e:
+			logger.info("Unrecognized token", e)
+			defer.returnValue(None)
+			return
 		except JWException as e:
 			logger.info("Invalid token", e)
 			defer.returnValue(None)

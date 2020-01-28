@@ -14,22 +14,90 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from token_authenticator import TokenAuthenticator
 from twisted.trial import unittest
 from twisted.internet import defer
-from mock import Mock
+from . import get_auth_provider, get_token
 
 class SimpleTestCase(unittest.TestCase):
-	def setUp(self):
-		account_handler = Mock(spec_set=["check_user_exists"])
-		account_handler.check_user_exists.return_value = True
-		config = TokenAuthenticator.parse_config({ "secret": "foxies" })
-		self.auth_provider = TokenAuthenticator(config, account_handler)
 
 	@defer.inlineCallbacks
 	def test_wrong_login_type(self):
-		result = yield self.auth_provider.check_auth("alice", "m.password", {"token": "blah"})
-		self.assertIs(result, None)
+		auth_provider = get_auth_provider()
+		token = get_token("alice")
+		result = yield auth_provider.check_auth("alice", "m.password", { "token": token })
+		self.assertEqual(result, None)
 
-#if __name__ == "__main__":
-#	unittest.main()
+	@defer.inlineCallbacks
+	def test_missing_token(self):
+		auth_provider = get_auth_provider()
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", {})
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_invalid_token(self):
+		auth_provider = get_auth_provider()
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": "invalid" })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_token_wrong_secret(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice", secret = "wrong secret")
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_token_wrong_alg(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice", algorithm = "HS256")
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_token_expired(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice", exp_in = -60)
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_token_no_expiracy(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice", exp_in = -1)
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_token_no_expiracy_with_config(self):
+		auth_provider = get_auth_provider(config = {
+			"secret": "foxies",
+			"require_expiracy": False,
+		})
+		token = get_token("alice", exp_in = -1)
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, "@alice:example.org")
+
+	@defer.inlineCallbacks
+	def test_valid_login(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice")
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, "@alice:example.org")
+
+	@defer.inlineCallbacks
+	def test_valid_loign_no_register(self):
+		auth_provider = get_auth_provider(user_exists = False)
+		token = get_token("alice")
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, None)
+
+	@defer.inlineCallbacks
+	def test_valid_login_with_register(self):
+		config = {
+			"secret": "foxies",
+			"allow_registration": True,
+		}
+		auth_provider = get_auth_provider(config = config, user_exists = False)
+		token = get_token("alice")
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, "@alice:example.org")
