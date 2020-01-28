@@ -40,3 +40,8 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
   "token": "<jwt here>"
 }
 ```
+
+## Test
+```bash
+trial tests/test_simple.py
+```
