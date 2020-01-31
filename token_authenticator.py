@@ -29,6 +29,10 @@ class TokenAuthenticator(object):
 
 	def __init__(self, config, account_handler):
 		self.account_handler = account_handler
+		if hasattr(account_handler, "hs"):
+			self.hs = account_handler.hs
+		else:
+			self.hs = account_handler._hs
 		self.config = config
 		if self.config.secret:
 			k = {
@@ -82,11 +86,11 @@ class TokenAuthenticator(object):
 			return
 
 		if user_id_or_localpart[0] == "@":
-			if not user_id_or_localpart.endswith(":" + self.account_handler.hs.hostname):
+			if not user_id_or_localpart.endswith(":" + self.hs.hostname):
 				logger.info("user_id isn't for our homeserver")
 				defer.returnValue(None)
 				return
-			localpart = user_id_or_localpart[1:-len(self.account_handler.hs.hostname)-1]
+			localpart = user_id_or_localpart[1:-len(self.hs.hostname)-1]
 		else:
 			localpart = user_id_or_localpart
 
@@ -96,7 +100,7 @@ class TokenAuthenticator(object):
 			defer.returnValue(None)
 			return
 
-		user_id = "@" + localpart + ":" + self.account_handler.hs.hostname
+		user_id = "@" + localpart + ":" + self.hs.hostname
 		if user_id != username_provided and localpart != username_provided:
 			logger.info("Non-matching user")
 			defer.returnValue(None)
