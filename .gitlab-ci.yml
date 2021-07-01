@@ -1,13 +1,17 @@
-run tests:
+stages:
+  - test
+
+test-py:
   stage: test
-  image: python:3
+  image: "python:3.8"
   script:
-    - pip install pytest pytest-cov
-    - pytest --cov=src/ tests.py
-    - coverage xml
-    - sed -i 's|" filename="|" filename="src/|g' coverage.xml
+    - pip install -r requirements.txt
+    - pytest --cov=src tests
+    - coverage xml --include="src/**" -o reports/coverage.xml
+    - sed -i 's|" filename="|" filename="src/|g' reports/coverage.xml
   artifacts:
     paths:
-      - coverage.xml
+      - reports/coverage.xml
     reports:
-      cobertura: coverage.xml
+      cobertura:
+        - reports/coverage.xml
