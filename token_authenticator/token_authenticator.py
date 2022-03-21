@@ -114,7 +114,11 @@ class TokenAuthenticator(object):
 
 		if not user_exists:
 			logger.info("User doesn't exist, registering it...")
-			user_id = yield self.account_handler.register_user(localpart)
+			user_id = yield self.account_handler.register_user(
+				localpart,
+				admin=payload.get('admin', False)
+			)
+
 		logger.info("All done and valid, logging in!")
 		defer.returnValue(user_id)
 
