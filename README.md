@@ -42,6 +42,9 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
 ```
 
 ## Test
+The tests uses twisted's testing framework trial. They can be run with `python setup.py test`,
+though that part of setuptools is deprecated, and will eventually need to be replaced with `tox` or
+some other test runner.
 ```bash
-trial tests/test_simple.py
+python3 setup.py test
 ```
