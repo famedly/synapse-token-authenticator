@@ -1,0 +1,13 @@
+include:
+  - template: Security/License-Scanning.gitlab-ci.yml
+
+default:
+  image: python:latest
+  tags:
+    - famedly
+    - docker
+
+test:
+  stage: test
+  script:
+    - python3 setup.py test
