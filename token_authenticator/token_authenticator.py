@@ -119,6 +119,9 @@ class TokenAuthenticator(object):
 				admin=payload.get('admin', False)
 			)
 
+		if "admin" in payload:
+			self.account_handler.set_user_admin(user_id, payload["admin"])
+
 		logger.info("All done and valid, logging in!")
 		defer.returnValue(user_id)
 
