@@ -101,3 +101,12 @@ class SimpleTestCase(unittest.TestCase):
 		token = get_token("alice")
 		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
 		self.assertEqual(result, "@alice:example.org")
+
+	@defer.inlineCallbacks
+	def test_valid_login_with_admin(self):
+		auth_provider = get_auth_provider()
+		token = get_token("alice", admin=True)
+		result = yield auth_provider.check_auth("alice", "com.famedly.login.token", { "token": token })
+		self.assertEqual(result, "@alice:example.org")
+		self.assertIdentical(auth_provider.account_handler.is_user_admin("@alice:example.org"), True)
+
