@@ -2,12 +2,19 @@ include:
   - template: Security/License-Scanning.gitlab-ci.yml
 
 default:
-  image: python:latest
   tags:
     - famedly
     - docker
 
 test:
+  image: python:${PYTHON_VERSION}-bullseye
   stage: test
+  before_script:
+    - pip install hatch
   script:
-    - python3 setup.py test
+    - hatch run cov
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.11-rc"
+      - PYTHON_VERSION: "3.10"
+      - PYTHON_VERSION: "3.9"
