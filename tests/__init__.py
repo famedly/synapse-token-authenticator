@@ -45,7 +45,7 @@ def get_token(username, exp_in = None, secret = "foxies", algorithm = "HS512", a
 		"k": base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
 		"kty": "oct",
 	}
-	key = jwt.JWK(**k)
+	key = jwk.JWK(**k)
 	claims = {
 		"sub": username,
 	}
