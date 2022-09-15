@@ -33,12 +33,17 @@ Source = "https://gitlab.com/famedly/company/backend/services/synapse-token-auth
 
 [tool.hatch.envs.default]
 dependencies = [
+  "black",
   "pytest",
   "pytest-cov",
   "mock",
 ]
 [tool.hatch.envs.default.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
+format = "black ."
+
+[tool.hatch.envs.ci.scripts]
+format = "black --check ."
 
 [tool.coverage.run]
 branch = true

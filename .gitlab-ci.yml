@@ -6,6 +6,17 @@ default:
     - famedly
     - docker
 
+variables:
+  HATCH_ENV: ci
+
+format:
+  image: python:bullseye
+  stage: test
+  before_script:
+    - pip install hatch
+  script:
+    - hatch run format
+
 test:
   image: python:${PYTHON_VERSION}-bullseye
   stage: test
