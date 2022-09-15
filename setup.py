@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="token_authenticator", # Replace with your own username
+    name="synapse_token_authenticator", # Replace with your own username
     version="0.1.0",
     author="Sorunome",
     author_email="mail@sorunome.de",

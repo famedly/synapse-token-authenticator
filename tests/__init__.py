@@ -15,7 +15,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from mock import Mock
-from token_authenticator import TokenAuthenticator
+from synapse_token_authenticator import TokenAuthenticator
 from jwcrypto import jwt, jwk
 import time
 import base64

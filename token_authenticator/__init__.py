@@ -1,1 +1,0 @@
-from token_authenticator.token_authenticator import TokenAuthenticator
