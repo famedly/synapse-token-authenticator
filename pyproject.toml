@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "synapse-token-authenticator"
+description = 'Synapse authentication module which allows for authenticating and registering using JWTs'
+readme = "README.md"
+requires-python = ">=3.9"
+license = "AGPL-3.0-only"
+keywords = []
+authors = [
+  { name = "Sorunome", email = "mail@sorunome.de" },
+  { name = "Amanda Graven", email = "amanda@graven.dev" },
+  { name = "Jan Christian Grünhage", email = "jan.christian@gruenhage.xyz" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = ["jwcrypto<=1.4.0", "twisted"]
+version = "0.1.0"
+
+[project.urls]
+Documentation = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator#synapse-token-authenticator"
+Issues = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator/-/issues"
+Source = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator/"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "black",
+  "pytest",
+  "pytest-cov",
+  "mock",
+]
+[tool.hatch.envs.default.scripts]
+cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
+format = "black ."
+
+[tool.hatch.envs.ci.scripts]
+format = "black --check ."
+
+[tool.coverage.run]
+branch = true
+parallel = true
+omit = []
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]

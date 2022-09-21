@@ -1,8 +1,26 @@
 # Synapse Token Authenticator
+
+[![PyPI - Version](https://img.shields.io/pypi/v/synapse-token-authenticator.svg)](https://pypi.org/project/synapse-token-authenticator)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/synapse-token-authenticator.svg)](https://pypi.org/project/synapse-token-authenticator)
+
 Synapse Token Authenticator is a synapse auth provider which allows for token authentication (and optional registration) using JWTs (Json Web Tokens).
 
+-----
+
+**Table of Contents**
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Testing](#testing)
+- [License](#license)
+
 ## Installation
-You have to make sure that `token_authenticator.py` is in the python path, so that synapse can find it. Additionally you also have to make sure that `jwcrypto` is installed (`pip install jwcrypto`).
+
+**TODO**: requires publishing on pypi.
+```console
+pip install synapse-token-authenticator
+```
 
 ## Configuration
 Here are the available configuration options:
@@ -41,10 +59,17 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
 }
 ```
 
-## Test
-The tests uses twisted's testing framework trial. They can be run with `python setup.py test`,
-though that part of setuptools is deprecated, and will eventually need to be replaced with `tox` or
-some other test runner.
-```bash
-python3 setup.py test
+## Testing
+
+The tests uses twisted's testing framework trial, with the development
+enviroment managed by hatch. Running the tests and generating a coverage report
+can be done like this:
+
+```console
+hatch run cov
 ```
+
+## License
+
+`synapse-token-authenticator` is distributed under the terms of the
+[AGPL-3.0](https://spdx.org/licenses/AGPL-3.0-only.html) license.
