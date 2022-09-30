@@ -14,13 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from twisted.internet import defer
+from typing import Awaitable, Callable, Optional, Tuple
 import logging
 from jwcrypto import jwt, jwk
 from jwcrypto.common import JWException, json_decode
 import os
 import base64
-import re
+
+import synapse
+from synapse.module_api import ModuleApi
+from synapse.types import UserID
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +31,9 @@ logger = logging.getLogger(__name__)
 class TokenAuthenticator(object):
     __version__ = "0.0.0"
 
-    def __init__(self, config, account_handler):
-        self.account_handler = account_handler
-        if hasattr(account_handler, "hs"):
-            self.hs = account_handler.hs
-        else:
-            self.hs = account_handler._hs
+    def __init__(self, config: dict, account_handler: ModuleApi):
+        self.api = account_handler
+
         self.config = config
         if self.config.secret:
             k = {
@@ -47,20 +47,27 @@ class TokenAuthenticator(object):
             with open(self.config.keyfile, "r") as f:
                 self.key = jwk.JWK.from_pem(f.read())
 
-    def get_supported_login_types(self):
-        return {"com.famedly.login.token": ("token",)}
+        self.api.register_password_auth_provider_callbacks(
+            auth_checkers={
+                ("com.famedly.login.token", ("token",)): self.check_auth,
+            },
+        )
 
-    @defer.inlineCallbacks
-    def check_auth(self, username_provided, login_type, login_dict):
+    async def check_auth(
+        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+    ) -> Optional[
+        Tuple[
+            str,
+            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+        ]
+    ]:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
-            defer.returnValue(None)
-            return
+            return None
         if "token" not in login_dict:
             logger.info("Missing token")
-            defer.returnValue(None)
-            return
+            return None
         token = login_dict["token"]
 
         check_claims = {}
@@ -68,7 +75,7 @@ class TokenAuthenticator(object):
             check_claims["exp"] = None
         try:
             # OK, let's verify the token
-            t = jwt.JWT(
+            token = jwt.JWT(
                 jwt=token,
                 key=self.key,
                 check_claims=check_claims,
@@ -76,61 +83,47 @@ class TokenAuthenticator(object):
             )
         except ValueError as e:
             logger.info("Unrecognized token", e)
-            defer.returnValue(None)
-            return
+            return None
         except JWException as e:
             logger.info("Invalid token", e)
-            defer.returnValue(None)
-            return
-        payload = json_decode(t.claims)
+            return None
+        payload = json_decode(token.claims)
         if "sub" not in payload:
             logger.info("Missing user_id field")
-            defer.returnValue(None)
-            return
-        user_id_or_localpart = payload["sub"]
-        if not isinstance(user_id_or_localpart, str):
+            return None
+        token_user_id_or_localpart = payload["sub"]
+        if not isinstance(token_user_id_or_localpart, str):
             logger.info("user_id isn't a string")
-            defer.returnValue(None)
+            return None
+
+        token_user_id_str = self.api.get_qualified_user_id(token_user_id_or_localpart)
+        user_id_str = self.api.get_qualified_user_id(username)
+        user_id = UserID.from_string(user_id_str)
+
+        if not user_id.domain == self.api._hs.hostname:
+            logger.info("user_id isn't for our homeserver")
             return
 
-        if user_id_or_localpart[0] == "@":
-            if not user_id_or_localpart.endswith(":" + self.hs.hostname):
-                logger.info("user_id isn't for our homeserver")
-                defer.returnValue(None)
-                return
-            localpart = user_id_or_localpart[1 : -len(self.hs.hostname) - 1]
-        else:
-            localpart = user_id_or_localpart
-
-        valid_localpart = not bool(re.compile(r"[^a-zA-Z0-9-.=_/]").search(localpart))
-        if not valid_localpart:
-            logger.info("Invalid localpart")
-            defer.returnValue(None)
-            return
-
-        user_id = "@" + localpart + ":" + self.hs.hostname
-        if user_id != username_provided and localpart != username_provided:
+        if user_id_str != token_user_id_str:
             logger.info("Non-matching user")
-            defer.returnValue(None)
-            return
+            return None
 
-        user_exists = yield self.account_handler.check_user_exists(user_id)
+        user_exists = await self.api._auth_handler.check_user_exists(user_id_str)
         if not user_exists and not self.config.allow_registration:
             logger.info("User doesn't exist and registration is disabled")
-            defer.returnValue(None)
-            return
+            return None
 
         if not user_exists:
             logger.info("User doesn't exist, registering it...")
-            user_id = yield self.account_handler.register_user(
-                localpart, admin=payload.get("admin", False)
+            await self.api._hs.get_registration_handler().register_user(
+                user_id.localpart, admin=payload.get("admin", False)
             )
 
         if "admin" in payload:
-            self.account_handler.set_user_admin(user_id, payload["admin"])
+            await self.api.set_user_admin(user_id_str, payload["admin"])
 
         logger.info("All done and valid, logging in!")
-        defer.returnValue(user_id)
+        return (user_id_str, None)
 
     @staticmethod
     def parse_config(config):

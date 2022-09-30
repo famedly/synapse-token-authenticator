@@ -20,65 +20,57 @@ from . import get_auth_provider, get_token
 
 
 class SimpleTestCase(unittest.TestCase):
-    @defer.inlineCallbacks
-    def test_wrong_login_type(self):
+    async def test_wrong_login_type(self):
         auth_provider = get_auth_provider()
         token = get_token("alice")
-        result = yield auth_provider.check_auth("alice", "m.password", {"token": token})
+        result = await auth_provider.check_auth("alice", "m.password", {"token": token})
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_missing_token(self):
+    async def test_missing_token(self):
         auth_provider = get_auth_provider()
-        result = yield auth_provider.check_auth("alice", "com.famedly.login.token", {})
+        result = await auth_provider.check_auth("alice", "com.famedly.login.token", {})
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_invalid_token(self):
+    async def test_invalid_token(self):
         auth_provider = get_auth_provider()
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": "invalid"}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_token_wrong_secret(self):
+    async def test_token_wrong_secret(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", secret="wrong secret")
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_token_wrong_alg(self):
+    async def test_token_wrong_alg(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", algorithm="HS256")
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_token_expired(self):
+    async def test_token_expired(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", exp_in=-60)
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_token_no_expiracy(self):
+    async def test_token_no_expiracy(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", exp_in=-1)
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_token_no_expiracy_with_config(self):
+    async def test_token_no_expiracy_with_config(self):
         auth_provider = get_auth_provider(
             config={
                 "secret": "foxies",
@@ -86,50 +78,46 @@ class SimpleTestCase(unittest.TestCase):
             }
         )
         token = get_token("alice", exp_in=-1)
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, "@alice:example.org")
+        self.assertEqual(result[0], "@alice:example.org")
 
-    @defer.inlineCallbacks
-    def test_valid_login(self):
+    async def test_valid_login(self):
         auth_provider = get_auth_provider()
         token = get_token("alice")
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, "@alice:example.org")
+        self.assertEqual(result[0], "@alice:example.org")
 
-    @defer.inlineCallbacks
-    def test_valid_loign_no_register(self):
+    async def test_valid_login_no_register(self):
         auth_provider = get_auth_provider(user_exists=False)
         token = get_token("alice")
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    @defer.inlineCallbacks
-    def test_valid_login_with_register(self):
+    async def test_valid_login_with_register(self):
         config = {
             "secret": "foxies",
             "allow_registration": True,
         }
         auth_provider = get_auth_provider(config=config, user_exists=False)
         token = get_token("alice")
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, "@alice:example.org")
+        self.assertEqual(result[0], "@alice:example.org")
 
-    @defer.inlineCallbacks
-    def test_valid_login_with_admin(self):
+    async def test_valid_login_with_admin(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", admin=True)
-        result = yield auth_provider.check_auth(
+        result = await auth_provider.check_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, "@alice:example.org")
+        self.assertEqual(result[0], "@alice:example.org")
         self.assertIdentical(
-            auth_provider.account_handler.is_user_admin("@alice:example.org"), True
+            await auth_provider.api.is_user_admin("@alice:example.org"), True
         )
