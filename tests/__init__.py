@@ -20,30 +20,41 @@ from jwcrypto import jwt, jwk
 import time
 import base64
 
+from synapse.server import HomeServer
+from synapse.module_api import ModuleApi
+from synapse.handlers.auth import AuthHandler
+from synapse.handlers.register import RegistrationHandler
+
 admins = {}
 
 
 def get_auth_provider(config=None, user_exists=True):
-    def set_user_admin(user_id: str, admin: bool):
+    async def set_user_admin(user_id: str, admin: bool):
         return admins.update({user_id: admin})
 
-    def is_user_admin(user_id: str):
+    async def is_user_admin(user_id: str):
         return admins.get(user_id, False)
 
-    account_handler = Mock(
-        spec_set=[
-            "check_user_exists",
-            "hs",
-            "register_user",
-            "set_user_admin",
-            "is_user_admin",
-        ]
-    )
-    account_handler.check_user_exists.return_value = user_exists
-    account_handler.register_user.return_value = "@alice:example.org"
-    account_handler.hs.hostname = "example.org"
+    hs = Mock(HomeServer, hostname="example.org")
+
+    registration_handler = Mock(RegistrationHandler)
+    registration_handler.register_user.return_value = "@alice:example.org"
+
+    auth_handler = Mock(AuthHandler)
+
+    account_handler = Mock(ModuleApi)
+    account_handler._hs = hs
+    account_handler._hs.get_registration_handler.return_value = registration_handler
+    account_handler._auth_handler = auth_handler
+    account_handler._auth_handler.check_user_exists.return_value = user_exists
     account_handler.set_user_admin.side_effect = set_user_admin
     account_handler.is_user_admin.side_effect = is_user_admin
+
+    def get_qualified_user_id(*args):
+        return ModuleApi.get_qualified_user_id(account_handler, *args)
+
+    account_handler.get_qualified_user_id.side_effect = get_qualified_user_id
+
     if config:
         config_parsed = TokenAuthenticator.parse_config(config)
     else:
