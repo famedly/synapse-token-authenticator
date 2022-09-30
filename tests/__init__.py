@@ -35,18 +35,22 @@ def get_auth_provider(config=None, user_exists=True):
     async def is_user_admin(user_id: str):
         return admins.get(user_id, False)
 
+    async def check_user_exists(user_id: str):
+        return user_exists
+
+    async def register_user(
+        localpart: str,
+        admin: bool = False,
+    ):
+        return "@alice:example.org"
+
     hs = Mock(HomeServer, hostname="example.org")
-
-    registration_handler = Mock(RegistrationHandler)
-    registration_handler.register_user.return_value = "@alice:example.org"
-
-    auth_handler = Mock(AuthHandler)
 
     account_handler = Mock(ModuleApi)
     account_handler._hs = hs
-    account_handler._hs.get_registration_handler.return_value = registration_handler
-    account_handler._auth_handler = auth_handler
-    account_handler._auth_handler.check_user_exists.return_value = user_exists
+    account_handler.server_name = "example.org"
+    account_handler.register_user.side_effect = register_user
+    account_handler.check_user_exists.side_effect = check_user_exists
     account_handler.set_user_admin.side_effect = set_user_admin
     account_handler.is_user_admin.side_effect = is_user_admin
 
