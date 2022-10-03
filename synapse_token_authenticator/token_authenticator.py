@@ -100,7 +100,7 @@ class TokenAuthenticator(object):
         user_id_str = self.api.get_qualified_user_id(username)
         user_id = UserID.from_string(user_id_str)
 
-        if not user_id.domain == self.api._hs.hostname:
+        if not user_id.domain == self.api.server_name:
             logger.info("user_id isn't for our homeserver")
             return
 
@@ -108,14 +108,14 @@ class TokenAuthenticator(object):
             logger.info("Non-matching user")
             return None
 
-        user_exists = await self.api._auth_handler.check_user_exists(user_id_str)
+        user_exists = await self.api.check_user_exists(user_id_str)
         if not user_exists and not self.config.allow_registration:
             logger.info("User doesn't exist and registration is disabled")
             return None
 
         if not user_exists:
             logger.info("User doesn't exist, registering it...")
-            await self.api._hs.get_registration_handler().register_user(
+            await self.api.register_user(
                 user_id.localpart, admin=payload.get("admin", False)
             )
 
