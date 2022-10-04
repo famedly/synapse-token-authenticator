@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.1.1] - 2022-10-04
+
+### Miscellaneous Tasks
+
+- Remove jwcrypto version limit
+
+### Refactoring
+
+- Switch to async await
+- Use public ModuleApi methods
+
+## [0.1.0] - 2022-09-21
 
 ### Bug Fixes
 
