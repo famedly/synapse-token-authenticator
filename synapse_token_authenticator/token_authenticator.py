@@ -96,23 +96,21 @@ class TokenAuthenticator(object):
             logger.info("user_id isn't a string")
             return None
 
-        # checking whether required UUID contained in case of chatbox mode
-        localpart = token_user_id_or_localpart.split(":")[0]
+        token_user_id_str = self.api.get_qualified_user_id(token_user_id_or_localpart)
+        user_id_str = self.api.get_qualified_user_id(username)
+        user_id = UserID.from_string(user_id_str)
 
+        # checking whether required UUID contained in case of chatbox mode
         if (
             "type" in payload
             and payload["type"] == "chatbox"
             and not re.search(
                 "[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                localpart,
+                user_id.localpart,
             )
         ):
             logger.info("user_id does not end with a UUID even though in chatbox mode")
             return None
-
-        token_user_id_str = self.api.get_qualified_user_id(token_user_id_or_localpart)
-        user_id_str = self.api.get_qualified_user_id(username)
-        user_id = UserID.from_string(user_id_str)
 
         if not user_id.domain == self.api.server_name:
             logger.info("user_id isn't for our homeserver")
