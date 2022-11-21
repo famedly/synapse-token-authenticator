@@ -99,6 +99,28 @@ class SimpleTestCase(unittest.TestCase):
         )
         self.assertEqual(result, None)
 
+    async def test_chatbox_login(self):
+        auth_provider = get_auth_provider()
+        token = get_token(
+            "alice_5833eb34-7dbf-44a7-90cf-868c50922c06", claims={"type": "chatbox"}
+        )
+        result = await auth_provider.check_auth(
+            "alice_5833eb34-7dbf-44a7-90cf-868c50922c06",
+            "com.famedly.login.token",
+            {"token": token},
+        )
+        self.assertEqual(
+            result[0], "@alice_5833eb34-7dbf-44a7-90cf-868c50922c06:example.org"
+        )
+
+    async def test_chatbox_login_invalid_format(self):
+        auth_provider = get_auth_provider(user_exists=False)
+        token = get_token("alice", claims={"type": "chatbox"})
+        result = await auth_provider.check_auth(
+            "alice", "com.famedly.login.token", {"token": token}
+        )
+        self.assertEqual(result, None)
+
     async def test_valid_login_with_register(self):
         config = {
             "secret": "foxies",
