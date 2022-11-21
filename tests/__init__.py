@@ -66,15 +66,17 @@ def get_auth_provider(config=None, user_exists=True):
     return TokenAuthenticator(config_parsed, account_handler)
 
 
-def get_token(username, exp_in=None, secret="foxies", algorithm="HS512", admin=None):
+def get_token(
+    username, exp_in=None, secret="foxies", algorithm="HS512", admin=None, claims=None
+):
     k = {
         "k": base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
         "kty": "oct",
     }
     key = jwk.JWK(**k)
-    claims = {
-        "sub": username,
-    }
+    if claims is None:
+        claims = {}
+    claims["sub"] = username
     if admin is not None:
         claims.update({"admin": admin})
 
