@@ -134,6 +134,11 @@ class TokenAuthenticator(object):
         if "admin" in payload:
             await self.api.set_user_admin(user_id_str, payload["admin"])
 
+        if "displayname" in payload:
+            await self.api._store.set_profile_display_name(
+                user_id.localpart, payload.displayname
+            )
+
         logger.info("All done and valid, logging in!")
         return (user_id_str, None)
 
