@@ -135,7 +135,7 @@ class TokenAuthenticator(object):
             await self.api.set_user_admin(user_id_str, payload["admin"])
 
         if "displayname" in payload:
-            await self.api._store.set_profile_display_name(
+            await self.api._store.set_profile_displayname(
                 user_id.localpart, payload.displayname
             )
 
