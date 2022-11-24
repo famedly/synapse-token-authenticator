@@ -136,7 +136,7 @@ class TokenAuthenticator(object):
 
         if "displayname" in payload:
             await self.api._store.set_profile_displayname(
-                user_id.localpart, payload.displayname
+                user_id.localpart, payload["displayname"]
             )
 
         logger.info("All done and valid, logging in!")
