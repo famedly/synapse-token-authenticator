@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2022-11-24
+
+### Bug Fixes
+
+- Add Requester to set_displayname
+
+### Miscellaneous Tasks
+
+- Bump version and update changelog
+
 ## [0.3.1] - 2022-11-24
 
 ### Bug Fixes
