@@ -23,7 +23,7 @@ import base64
 
 import synapse
 from synapse.module_api import ModuleApi
-from synapse.types import UserID
+from synapse.types import UserID, create_requester
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,7 @@ class TokenAuthenticator(object):
 
         if "displayname" in payload:
             await self.api._hs.get_profile_handler().set_displayname(
+                requester=synapse.types.create_requester(user_id),
                 target_user=user_id,
                 by_admin=True,
                 new_displayname=payload["displayname"],
