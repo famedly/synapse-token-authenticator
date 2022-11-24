@@ -2,13 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2022-11-24
+
+### Bug Fixes
+
+- Allow properly setting the displayname from the token
+- Use ProfileHandler for display name
+
+### Miscellaneous Tasks
+
+- Bump version and update changelog
+
 ## [0.3.0] - 2022-11-23
 
-### Features
+### Bug Fixes
 
-- Handle displayname claim
-
-## [0.2.1] - 2022-11-23 (yanked)
+- Use correct method name for display name change
 
 ### Features
 
