@@ -135,8 +135,10 @@ class TokenAuthenticator(object):
             await self.api.set_user_admin(user_id_str, payload["admin"])
 
         if "displayname" in payload:
-            await self.api._store.set_profile_displayname(
-                user_id.localpart, payload["displayname"]
+            await self.api._hs.get_profile_handler().set_displayname(
+                target_user=user_id,
+                by_admin=True,
+                new_displayname=payload["displayname"],
             )
 
         logger.info("All done and valid, logging in!")
