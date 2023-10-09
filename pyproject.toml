@@ -27,9 +27,9 @@ dependencies = ["jwcrypto", "twisted"]
 version = "0.3.2"
 
 [project.urls]
-Documentation = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator#synapse-token-authenticator"
-Issues = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator/-/issues"
-Source = "https://gitlab.com/famedly/company/backend/services/synapse-token-authenticator/"
+Documentation = "https://github.com/famedly/synapse-token-authenticator"
+Issues = "https://github.com/famedly/synapse-token-authenticator/issues"
+Source = "https://github.com/famedly/synapse-token-authenticator"
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -45,6 +45,8 @@ format = "black ."
 
 [tool.hatch.envs.ci.scripts]
 format = "black --check ."
+head-cov = "pytest --cov-report=lcov:../head.lcov --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
+base-cov = "pytest --cov-report=lcov:../base.lcov --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
 
 [tool.coverage.run]
 branch = true
