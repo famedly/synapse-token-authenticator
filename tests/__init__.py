@@ -22,8 +22,6 @@ import base64
 
 from synapse.server import HomeServer
 from synapse.module_api import ModuleApi
-from synapse.handlers.auth import AuthHandler
-from synapse.handlers.register import RegistrationHandler
 
 admins = {}
 
@@ -81,7 +79,7 @@ def get_token(
         claims.update({"admin": admin})
 
     if exp_in != -1:
-        if exp_in == None:
+        if exp_in is None:
             claims["exp"] = int(time.time()) + 120
         else:
             claims["exp"] = int(time.time()) + exp_in

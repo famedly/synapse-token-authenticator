@@ -23,7 +23,7 @@ import base64
 
 import synapse
 from synapse.module_api import ModuleApi
-from synapse.types import UserID, create_requester
+from synapse.types import UserID
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ class TokenAuthenticator(object):
             raise Exception("Keyfile doesn't exist")
 
         _config.algorithm = config.get("algorithm", "HS512")
-        if not _config.algorithm in [
+        if _config.algorithm not in [
             "HS256",
             "HS384",
             "HS512",

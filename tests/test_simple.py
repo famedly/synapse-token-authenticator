@@ -15,7 +15,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from twisted.trial import unittest
-from twisted.internet import defer
 from . import get_auth_provider, get_token
 
 
