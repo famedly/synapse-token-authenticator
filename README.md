@@ -25,16 +25,19 @@ pip install synapse-token-authenticator
 ## Configuration
 Here are the available configuration options:
 ```yaml
-# provide only one of secret, keyfile
-secret: symetrical secret
-keyfile: path to asymetrical keyfile
-
-# Algorithm of the tokens, defaults to HS512
-#algorithm: HS512
-# Allow registration of new users using these tokens, defaults to false
-#allow_registration: false
-# Require tokens to have an expiracy set, defaults to true
-#require_expiracy: true
+modules:
+  - module: synapse_token_authenticator.TokenAuthenticator
+    config:
+      # provide only one of secret, keyfile
+      secret: symetrical secret
+      keyfile: path to asymetrical keyfile
+      
+      # Algorithm of the tokens, defaults to HS512
+      #algorithm: HS512
+      # Allow registration of new users using these tokens, defaults to false
+      #allow_registration: false
+      # Require tokens to have an expiracy set, defaults to true
+      #require_expiracy: true
 ```
 It is recommended to have `require_expiracy` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
 
