@@ -3,7 +3,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/synapse-token-authenticator.svg)](https://pypi.org/project/synapse-token-authenticator)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/synapse-token-authenticator.svg)](https://pypi.org/project/synapse-token-authenticator)
 
-Synapse Token Authenticator is a synapse auth provider which allows for token authentication (and optional registration) using JWTs (Json Web Tokens).
+Synapse Token Authenticator is a synapse auth provider which allows for token authentication (and optional registration) using JWTs (Json Web Tokens) and OIDC.
 
 -----
 
@@ -25,20 +25,33 @@ pip install synapse-token-authenticator
 ## Configuration
 Here are the available configuration options:
 ```yaml
-# provide only one of secret, keyfile
-secret: symetrical secret
-keyfile: path to asymetrical keyfile
+jwt:
+  # provide only one of secret, keyfile
+  secret: symetrical secret
+  keyfile: path to asymetrical keyfile
 
-# Algorithm of the tokens, defaults to HS512
-#algorithm: HS512
-# Allow registration of new users using these tokens, defaults to false
-#allow_registration: false
-# Require tokens to have an expiry set, defaults to true
-#require_expiry: true
+  # Algorithm of the tokens, defaults to HS512 (optional)
+  algorithm: HS512
+  # Allow registration of new users, defaults to false (optional)
+  allow_registration: false
+  # Require tokens to have an expiry set, defaults to true (optional)
+  require_expiry: true
+oidc:
+  issuer: "https://idp.example.com"
+  client_id: "<IDP client id>"
+  client_secret: "<IDP client secret>"
+  project_id: # TODO: improve docs
+  organization_id: # TODO: improve docs
+  # Limits access to specified clients. Allows any client if not set (optional)
+  allowed_client_ids: ['foo', 'bar'] # TODO: better examples
+  # Allow registration of new users, defaults to false (optional)
+  allow_registration: false
 ```
 It is recommended to have `require_expiry` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
 
 ## Usage
+
+### JWT Authentication
 First you have to generate a JWT with the correct claims. The `sub` claim is the localpart or full mxid of the user you want to log in as. Be sure that the algorithm and secret match those of the configuration. An example of the claims is as follows:
 ```json
 {
@@ -58,6 +71,35 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
   "token": "<jwt here>"
 }
 ```
+
+### OIDC Authentication
+
+First, the user needs to obtain an Access Token from the IDP:
+```json
+{
+  "iss": "https://idp.example.com/",
+  "sub": "220267813632278785",
+  "aud": "233481029296366244",
+  "exp": 1696982336,
+  "iat": 1696939136,
+  "nbf": 1696939136,
+  "jti": "235624483711446594"
+}
+```
+
+Next, the client needs to post this payload to the login endpoint:
+
+```jsonc
+{
+  "type": "com.famedly.login.token.oidc",
+  "identifier": {
+    "type": "m.id.user",
+    "user": "alice" // The user's localpart, should match the localpart in the ID Token provided by the IDP 
+  },
+  "token": "<jwt here>" // The encoded Access Token from above 
+}
+```
+
 
 ## Testing
 

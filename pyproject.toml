@@ -37,11 +37,13 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "mock",
-  "matrix-synapse"
+  "matrix-synapse",
+  "ruff",
 ]
 [tool.hatch.envs.default.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
 format = "black ."
+lint = "ruff check ."
 
 [tool.hatch.envs.ci.scripts]
 format = "black --check ."
@@ -54,8 +56,4 @@ parallel = true
 omit = []
 
 [tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]

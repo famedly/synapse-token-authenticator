@@ -52,6 +52,13 @@ def get_auth_provider(config=None, user_exists=True):
     account_handler.set_user_admin.side_effect = set_user_admin
     account_handler.is_user_admin.side_effect = is_user_admin
 
+    # TODO: mock IDP:
+    # - /.well-known/openid-configuration
+    #   - (only needs to contain: issuer, introspection_endpoint, userinfo_endpoint, jwks_uri, id_token_signing_alg_values_supported)
+    # - /oauth/v2/keys
+    # - /oauth/v2/introspect
+    # - /oidc/v1/userinfo
+
     def get_qualified_user_id(*args):
         return ModuleApi.get_qualified_user_id(account_handler, *args)
 
@@ -60,7 +67,19 @@ def get_auth_provider(config=None, user_exists=True):
     if config:
         config_parsed = TokenAuthenticator.parse_config(config)
     else:
-        config_parsed = TokenAuthenticator.parse_config({"secret": "foxies"})
+        # TODO: add example oidc config
+        config_parsed = TokenAuthenticator.parse_config(
+            {
+                "jwt": {"secret": "foxies"},
+                # "oidc": {
+                #    "issuer": "https://idp.example.org",
+                #    "client_id": "",
+                #    "client_secret": "",
+                #    "project_id": "",
+                #    "organization_id": ""
+                # },
+            }
+        )
     return TokenAuthenticator(config_parsed, account_handler)
 
 
