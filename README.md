@@ -33,10 +33,10 @@ keyfile: path to asymetrical keyfile
 #algorithm: HS512
 # Allow registration of new users using these tokens, defaults to false
 #allow_registration: false
-# Require tokens to have an expiracy set, defaults to true
-#require_expiracy: true
+# Require tokens to have an expiry set, defaults to true
+#require_expiry: true
 ```
-It is recommended to have `require_expiracy` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
+It is recommended to have `require_expiry` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
 
 ## Usage
 First you have to generate a JWT with the correct claims. The `sub` claim is the localpart or full mxid of the user you want to log in as. Be sure that the algorithm and secret match those of the configuration. An example of the claims is as follows:

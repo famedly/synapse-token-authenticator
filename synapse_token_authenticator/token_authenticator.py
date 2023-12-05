@@ -71,7 +71,7 @@ class TokenAuthenticator(object):
         token = login_dict["token"]
 
         check_claims = {}
-        if self.config.require_expiracy:
+        if self.config.require_expiry:
             check_claims["exp"] = None
         try:
             # OK, let's verify the token
@@ -177,5 +177,5 @@ class TokenAuthenticator(object):
             raise Exception("Unknown algorithm " + _config.algorithm)
 
         _config.allow_registration = config.get("allow_registration", False)
-        _config.require_expiracy = config.get("require_expiracy", True)
+        _config.require_expiry = config.get("require_expiry", True)
         return _config

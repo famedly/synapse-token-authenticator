@@ -61,7 +61,7 @@ class SimpleTestCase(unittest.TestCase):
         )
         self.assertEqual(result, None)
 
-    async def test_token_no_expiracy(self):
+    async def test_token_no_expiry(self):
         auth_provider = get_auth_provider()
         token = get_token("alice", exp_in=-1)
         result = await auth_provider.check_auth(
@@ -69,11 +69,11 @@ class SimpleTestCase(unittest.TestCase):
         )
         self.assertEqual(result, None)
 
-    async def test_token_no_expiracy_with_config(self):
+    async def test_token_no_expiry_with_config(self):
         auth_provider = get_auth_provider(
             config={
                 "secret": "foxies",
-                "require_expiracy": False,
+                "require_expiry": False,
             }
         )
         token = get_token("alice", exp_in=-1)
