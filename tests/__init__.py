@@ -67,23 +67,22 @@ def get_auth_provider(config=None, user_exists=True):
     if config:
         config_parsed = TokenAuthenticator.parse_config(config)
     else:
-        # TODO: add example oidc config
         config_parsed = TokenAuthenticator.parse_config(
             {
                 "jwt": {"secret": "foxies"},
-                # "oidc": {
-                #    "issuer": "https://idp.example.org",
-                #    "client_id": "",
-                #    "client_secret": "",
-                #    "project_id": "",
-                #    "organization_id": ""
-                # },
+                "oidc": {
+                    "issuer": "https://idp.example.org",
+                    "client_id": "1111@project",
+                    "client_secret": "2222@project",
+                    "project_id": "2323287877823",
+                    "organization_id": "2283783782778",
+                },
             }
         )
     return TokenAuthenticator(config_parsed, account_handler)
 
 
-def get_token(
+def get_jwt_token(
     username, exp_in=None, secret="foxies", algorithm="HS512", admin=None, claims=None
 ):
     k = {
@@ -105,3 +104,11 @@ def get_token(
     token = jwt.JWT(header={"alg": algorithm}, claims=claims)
     token.make_signed_token(key)
     return token.serialize()
+
+
+def get_oidc_login(username):
+    return {
+        "type": "com.famedly.login.token.oidc",
+        "identifier": {"type": "m.id.user", "user": username},
+        "token": "zitadel_access_token",
+    }
