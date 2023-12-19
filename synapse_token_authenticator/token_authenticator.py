@@ -18,6 +18,7 @@ from typing import Awaitable, Callable, Optional, Tuple
 import logging
 from jwcrypto import jwt, jwk
 from jwcrypto.common import JWException, json_decode
+import json
 import base64
 import requests
 from requests.auth import HTTPBasicAuth
@@ -80,14 +81,16 @@ class TokenAuthenticator(object):
             self.project_id = oidc_config.project_id
 
         def render_GET(self, request):
-            request.responseHeaders.addRawHeader(b"content-type", b"application/json")
-            return f"""
-                {{
-	                "issuer": "{self.issuer}",
-	                "issuer-metadata": "{self.metadata_url}",
-                    "organization-id": "{self.organization_id}"
-                }}
-            """
+            request.setHeader(b"content-type", b"application/json")
+            request.setHeader(b"access-control-allow-origin", b"*")
+            return json.dumps(
+                {
+                    "issuer": self.issuer,
+                    "issuer-metadata": self.metadata_url,
+                    "organization-id": self.organization_id,
+                    "project-id": self.project_id,
+                }
+            ).encode("utf-8")
 
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
