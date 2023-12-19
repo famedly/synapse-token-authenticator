@@ -40,10 +40,12 @@ oidc:
   issuer: "https://idp.example.com"
   client_id: "<IDP client id>"
   client_secret: "<IDP client secret>"
-  project_id: # TODO: improve docs
-  organization_id: # TODO: improve docs
+  # Zitadel Organization ID, used for masking. (Optional)
+  organization_id: 1234
+  # Zitadel Project ID, used for validating the audience of the returned token.
+  project_id: 5678
   # Limits access to specified clients. Allows any client if not set (optional)
-  allowed_client_ids: ['foo', 'bar'] # TODO: better examples
+  allowed_client_ids: ['2897827328738@project_name']
   # Allow registration of new users, defaults to false (optional)
   allow_registration: false
 ```
