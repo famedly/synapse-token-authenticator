@@ -204,20 +204,6 @@ class TokenAuthenticator(object):
         oidc = self.config.oidc
         oidc_metadata = OpenIDProviderMetadata(oidc.issuer)
 
-        # Basic token validation
-        try:
-            jwt.JWT(
-                jwt=token,
-                key=oidc_metadata.jwks(),
-                algs=oidc_metadata.id_token_signing_alg_values_supported,
-            )
-        except ValueError as e:
-            logger.info("Unrecognized token", e)
-            return None
-        except JWException as e:
-            logger.info("Invalid token", e)
-            return None
-
         # Further validation using token introspection
         data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
         auth = HTTPBasicAuth(oidc.client_id, oidc.client_secret)
