@@ -14,6 +14,7 @@ class OpenIDProviderMetadata:
 
         configuration = response.json()
 
+        self.issuer = issuer
         self.introspection_endpoint: str = configuration["introspection_endpoint"]
         self.jwks_uri: str = configuration["jwks_uri"]
         self.id_token_signing_alg_values_supported: list[str] = configuration[
