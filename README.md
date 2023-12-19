@@ -76,29 +76,22 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
 
 ### OIDC Authentication
 
-First, the user needs to obtain an Access Token from the IDP:
+First, the user needs to obtain an Access token and an ID token from the IDP:
 ```json
-{
-  "iss": "https://idp.example.com/",
-  "sub": "220267813632278785",
-  "aud": "233481029296366244",
-  "exp": 1696982336,
-  "iat": 1696939136,
-  "nbf": 1696939136,
-  "jti": "235624483711446594"
-}
+POST https://idp.example.org/oauth/v2/token
+
 ```
 
-Next, the client needs to post this payload to the login endpoint:
+Next, the client needs to use these tokens and construct a payload to the login endpoint:
 
 ```jsonc
 {
   "type": "com.famedly.login.token.oidc",
   "identifier": {
     "type": "m.id.user",
-    "user": "alice" // The user's localpart, should match the localpart in the ID Token provided by the IDP 
+    "user": "alice" // The user's localpart, extracted from the localpart in the ID token returned by the IDP
   },
-  "token": "<jwt here>" // The encoded Access Token from above 
+  "token": "<opaque access here>" // The access token returned by the IDP
 }
 ```
 
