@@ -52,13 +52,6 @@ def get_auth_provider(config=None, user_exists=True):
     account_handler.set_user_admin.side_effect = set_user_admin
     account_handler.is_user_admin.side_effect = is_user_admin
 
-    # TODO: mock IDP:
-    # - /.well-known/openid-configuration
-    #   - (only needs to contain: issuer, introspection_endpoint, userinfo_endpoint, jwks_uri, id_token_signing_alg_values_supported)
-    # - /oauth/v2/keys
-    # - /oauth/v2/introspect
-    # - /oidc/v1/userinfo
-
     def get_qualified_user_id(*args):
         return ModuleApi.get_qualified_user_id(account_handler, *args)
 
@@ -74,7 +67,7 @@ def get_auth_provider(config=None, user_exists=True):
                     "issuer": "https://idp.example.org",
                     "client_id": "1111@project",
                     "client_secret": "2222@project",
-                    "project_id": "2323287877823",
+                    "project_id": "231872387283",
                     "organization_id": "2283783782778",
                 },
             }
@@ -112,3 +105,68 @@ def get_oidc_login(username):
         "identifier": {"type": "m.id.user", "user": username},
         "token": "zitadel_access_token",
     }
+
+
+def mock_idp_get(*args, **kwargs):
+    class Response:
+        def __init__(self, json_data, status_code):
+            self.json_data = json_data
+            self.status_code = status_code
+
+        def json(self):
+            return self.json_data
+
+        def raise_for_status(self):
+            ...
+
+    hostname = "https://idp.example.org"
+
+    if args[0] == f"{hostname}/.well-known/openid-configuration":
+        return Response(
+            {
+                "issuer": hostname,
+                "introspection_endpoint": f"{hostname}/oauth/v2/introspect",
+                "id_token_signing_alg_values_supported": "RS256",
+                "jwks_uri": f"{hostname}/oauth/v2/keys",
+            },
+            200,
+        )
+    else:
+        return Response(None, 404)
+
+
+def mock_idp_post(*args, **kwargs):
+    class Response:
+        def __init__(self, json_data, status_code):
+            self.json_data = json_data
+            self.status_code = status_code
+
+        def json(self):
+            return self.json_data
+
+        def raise_for_status(self):
+            ...
+
+    hostname = "https://idp.example.org"
+
+    if args[0] == f"{hostname}/oauth/v2/introspect":
+        # Fail if no access token is provided
+        if kwargs.get("data") is None:
+            return Response(None, 401)
+        # Fail if access token is incorrect
+        if kwargs["data"]["token"] != "zitadel_access_token":
+            return Response(None, 401)
+
+        return Response(
+            {
+                "active": True,
+                "iss": hostname,
+                "localpart": "alice",
+                "urn:zitadel:iam:org:project:231872387283:roles": {
+                    "OrgAdmin": {"2283783782778": "meow"}
+                },
+            },
+            200,
+        )
+    else:
+        return Response(None, 404)
