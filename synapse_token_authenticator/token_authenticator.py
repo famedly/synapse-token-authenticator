@@ -210,7 +210,10 @@ class TokenAuthenticator(object):
         response = requests.post(
             oidc_metadata.introspection_endpoint, data=data, auth=auth
         )
-        response.raise_for_status()
+        if response.status_code == 401:
+            logger.info("User's access token is invalid")
+            return None
+
         introspection_resp = response.json()
 
         if not introspection_resp["active"]:
