@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-01-10
+
+### Features
+
+- [**breaking**] Add OIDC login flow
+  - Previously available config options have been moved under the `jwt` key. See `README.md` for an example.
+
+### Miscellaneous Tasks
+
+- Add github action
+- Migrate to github
+
+### Refactoring
+
+- Appease linter
+- [**breaking**] Rename the 'require_expiracy' option to 'require_expiry'
+
 ## [0.3.2] - 2022-11-24
 
 ### Bug Fixes
