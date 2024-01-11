@@ -13,11 +13,11 @@ Synapse Token Authenticator is a synapse auth provider which allows for token au
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Testing](#testing)
+- [Releasing](#releasing)
 - [License](#license)
 
 ## Installation
 
-**TODO**: requires publishing on pypi.
 ```console
 pip install synapse-token-authenticator
 ```
@@ -105,6 +105,10 @@ can be done like this:
 ```console
 hatch run cov
 ```
+
+## Releasing
+
+After tagging a new version, manually create a Github release based on the tag. This will publish the package on PyPI.
 
 ## License
 
