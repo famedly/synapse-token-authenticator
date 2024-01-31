@@ -9,7 +9,9 @@ class OpenIDProviderMetadata:
     """
 
     def __init__(self, issuer: str):
-        response = requests.get(urljoin(issuer, "/.well-known/openid-configuration"))
+        response = requests.get(
+            urljoin(issuer, "/.well-known/openid-configuration"), proxies={}
+        )
         response.raise_for_status()
 
         configuration = response.json()
@@ -25,7 +27,7 @@ class OpenIDProviderMetadata:
         """
         Signing keys used to validate signatures from the OpenID Provider
         """
-        response = requests.get(self.jwks_uri)
+        response = requests.get(self.jwks_uri, proxies={})
         response.raise_for_status()
 
         return JWKSet.from_json(response.text)

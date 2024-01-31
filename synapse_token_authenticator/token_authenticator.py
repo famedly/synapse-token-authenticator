@@ -208,7 +208,7 @@ class TokenAuthenticator(object):
         data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
         auth = HTTPBasicAuth(oidc.client_id, oidc.client_secret)
         response = requests.post(
-            oidc_metadata.introspection_endpoint, data=data, auth=auth
+            oidc_metadata.introspection_endpoint, data=data, auth=auth, proxies={}
         )
         if response.status_code == 401:
             logger.info("User's access token is invalid")
