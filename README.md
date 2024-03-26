@@ -77,7 +77,7 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
 ### OIDC Authentication
 
 First, the user needs to obtain an Access token and an ID token from the IDP:
-```json
+```http
 POST https://idp.example.org/oauth/v2/token
 
 ```
