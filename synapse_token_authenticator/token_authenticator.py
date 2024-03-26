@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024 Famedly
 #
 # This program is free software: you can redistribute it and/or modify
@@ -13,34 +12,33 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-import re
-from typing import Awaitable, Callable, Optional, Tuple
-import logging
-from jwcrypto import jwt, jwk
-from jwcrypto.common import JWException, json_decode
-import json
 import base64
-import requests
-from requests.auth import HTTPBasicAuth
+import json
+import logging
+import re
+from collections.abc import Awaitable
+from typing import Callable, Optional
 from urllib.parse import urljoin
 
 import synapse
+from jwcrypto import jwk, jwt
+from jwcrypto.common import JWException, json_decode
+from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
 from synapse.types import UserID
-
 from twisted.web import resource
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
-from synapse_token_authenticator.utils import OpenIDProviderMetadata
+from synapse_token_authenticator.utils import get_oidp_metadata, basic_auth
 
 logger = logging.getLogger(__name__)
 
 
-class TokenAuthenticator(object):
+class TokenAuthenticator:
     __version__ = "0.0.0"
 
-    def __init__(self, config: dict, account_handler: ModuleApi):
-        self.api = account_handler
+    def __init__(self, config: dict, api: ModuleApi):
+        self.api = api
 
         auth_checkers = {}
 
@@ -55,14 +53,14 @@ class TokenAuthenticator(object):
                 }
                 self.key = jwk.JWK(**k)
             else:
-                with open(jwt.keyfile, "r") as f:
+                with open(jwt.keyfile) as f:
                     self.key = jwk.JWK.from_pem(f.read())
             auth_checkers[("com.famedly.login.token", ("token",))] = self.check_jwt_auth
 
         if (oidc := getattr(self.config, "oidc", None)) is not None:
-            auth_checkers[
-                ("com.famedly.login.token.oidc", ("token",))
-            ] = self.check_oidc_auth
+            auth_checkers[("com.famedly.login.token.oidc", ("token",))] = (
+                self.check_oidc_auth
+            )
 
             self.api.register_web_resource(
                 "/_famedly/login/com.famedly.login.token.oidc",
@@ -95,7 +93,7 @@ class TokenAuthenticator(object):
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
     ) -> Optional[
-        Tuple[
+        tuple[
             str,
             Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
         ]
@@ -121,10 +119,10 @@ class TokenAuthenticator(object):
                 algs=[self.config.jwt.algorithm],
             )
         except ValueError as e:
-            logger.info("Unrecognized token", e)
+            logger.info("Unrecognized token %s", e)
             return None
         except JWException as e:
-            logger.info("Invalid token", e)
+            logger.info("Invalid token %s", e)
             return None
         payload = json_decode(token.claims)
         if "sub" not in payload:
@@ -151,7 +149,7 @@ class TokenAuthenticator(object):
             logger.info("user_id does not end with a UUID even though in chatbox mode")
             return None
 
-        if not user_id.domain == self.api.server_name:
+        if user_id.domain != self.api.server_name:
             logger.info("user_id isn't for our homeserver")
             return
 
@@ -187,7 +185,7 @@ class TokenAuthenticator(object):
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
     ) -> Optional[
-        Tuple[
+        tuple[
             str,
             Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
         ]
@@ -202,22 +200,23 @@ class TokenAuthenticator(object):
         token = login_dict["token"]
 
         oidc = self.config.oidc
-        oidc_metadata = OpenIDProviderMetadata(oidc.issuer)
+        oidc_metadata = await get_oidp_metadata(oidc.issuer, self.api.http_client)
 
         # Further validation using token introspection
         data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
-        auth = HTTPBasicAuth(oidc.client_id, oidc.client_secret)
-        response = requests.post(
-            oidc_metadata.introspection_endpoint,
-            data=data,
-            auth=auth,
-            proxies={"http": "", "https": ""},
-        )
-        if response.status_code == 401:
-            logger.info("User's access token is invalid")
-            return None
 
-        introspection_resp = response.json()
+        try:
+            introspection_resp = await self.api.http_client.post_json_get_json(
+                oidc_metadata.introspection_endpoint,
+                data,
+                headers=basic_auth(oidc.client_id, oidc.client_secret),
+            )
+        except HttpResponseException as e:
+            if e.code == 401:
+                logger.info("User's access token is invalid")
+                return None
+            else:
+                raise e
 
         if not introspection_resp["active"]:
             logger.info("User is not active")

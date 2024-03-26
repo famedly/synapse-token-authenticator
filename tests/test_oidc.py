@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024 Famedly
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,68 +13,79 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from twisted.trial import unittest
-from . import get_auth_provider, get_oidc_login, mock_idp_get, mock_idp_post
 from unittest import mock
 
+import tests.unittest as synapsetest
 
-class OIDCTests(unittest.TestCase):
+from . import ModuleApiTestCase, get_oidc_login, mock_idp_req
+
+
+class OIDCTests(ModuleApiTestCase):
     async def test_wrong_login_type(self):
-        auth_provider = get_auth_provider()
-        result = await auth_provider.check_oidc_auth(
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "m.password", get_oidc_login("alice")
         )
         self.assertEqual(result, None)
 
     async def test_missing_token(self):
-        auth_provider = get_auth_provider()
-        result = await auth_provider.check_oidc_auth(
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token,oidc", {}
         )
         self.assertEqual(result, None)
 
-    @mock.patch("requests.get", side_effect=mock_idp_get)
-    @mock.patch("requests.post", side_effect=mock_idp_post)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
     async def test_invalid_token(self, *args):
-        auth_provider = get_auth_provider()
-        result = await auth_provider.check_oidc_auth(
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", {"token": "invalid"}
         )
         self.assertEqual(result, None)
 
-    @mock.patch("requests.get", side_effect=mock_idp_get)
-    @mock.patch("requests.post", side_effect=mock_idp_post)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
     async def test_valid_login(self, *args):
-        auth_provider = get_auth_provider()
-        result = await auth_provider.check_oidc_auth(
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    @mock.patch("requests.get", side_effect=mock_idp_get)
-    @mock.patch("requests.post", side_effect=mock_idp_post)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
     async def test_valid_login_no_register(self, *args):
-        auth_provider = get_auth_provider(user_exists=False)
-        result = await auth_provider.check_oidc_auth(
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
         self.assertEqual(result, None)
 
-    @mock.patch("requests.get", side_effect=mock_idp_get)
-    @mock.patch("requests.post", side_effect=mock_idp_post)
-    async def test_valid_login_with_register(self, *args):
-        config = {
-            "oidc": {
-                "issuer": "https://idp.example.test",
-                "client_id": "1111@project",
-                "client_secret": "2222@project",
-                "project_id": "231872387283",
-                "organization_id": "2283783782778",
-                "allow_registration": True,
-            },
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@project",
+                            "client_secret": "2222@project",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allow_registration": True,
+                        }
+                    },
+                }
+            ]
         }
-        auth_provider = get_auth_provider(config=config, user_exists=False)
-        result = await auth_provider.check_oidc_auth(
+    )
+    async def test_valid_login_with_register(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
         self.assertEqual(result[0], "@alice:example.test")

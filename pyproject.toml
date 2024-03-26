@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "synapse-token-authenticator"
 description = 'Synapse authentication module which allows for authenticating and registering using JWTs'
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "AGPL-3.0-only"
 keywords = []
 authors = [
