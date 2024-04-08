@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2024-04-08
+
+### Features
+
+- Refactor http calls to ModuleApi
+
 ## [0.4.2] - 2024-01-31
 
 ### Bug Fixes
