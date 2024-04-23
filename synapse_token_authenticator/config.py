@@ -21,7 +21,7 @@ class TokenAuthenticatorConfig:
                     self.require_expiry: bool = other.get("require_expiry", True)
 
             self.jwt = JwtConfig(jwt)
-            self.verify_jwt()
+            verify_jwt_based_cfg(self.jwt)
 
         if oidc := other.get("oidc"):
 
@@ -46,25 +46,42 @@ class TokenAuthenticatorConfig:
 
             self.oidc = OIDCConfig(oidc)
 
-    def verify_jwt(self):
-        if self.jwt.secret is None and self.jwt.keyfile is None:
-            raise Exception("Missing secret or keyfile")
-        if self.jwt.keyfile is not None and not os.path.exists(self.jwt.keyfile):
-            raise Exception("Keyfile doesn't exist")
+        if custom_flow := other.get("custom_flow"):
 
-        if self.jwt.algorithm not in [
-            "HS256",
-            "HS384",
-            "HS512",
-            "RS256",
-            "RS384",
-            "RS512",
-            "ES256",
-            "ES384",
-            "ES512",
-            "PS256",
-            "PS384",
-            "PS512",
-            "EdDSA",
-        ]:
-            raise Exception(f"Unknown algorithm: '{self.jwt.algorithm}'")
+            class CustomFlowConfig:
+                def __init__(self, other: dict):
+                    self.secret: str | None = other.get("secret")
+                    self.keyfile: str | None = other.get("keyfile")
+
+                    self.algorithm: str = other.get("algorithm", "RS256")
+                    self.require_expiry: bool = other.get("require_expiry", True)
+                    self.notify_on_registration_uri: str = other.get(
+                        "notify_on_registration_uri"
+                    )
+
+            self.custom_flow = CustomFlowConfig(custom_flow)
+            verify_jwt_based_cfg(self.custom_flow)
+
+
+def verify_jwt_based_cfg(cfg):
+    if cfg.secret is None and cfg.keyfile is None:
+        raise Exception("Missing secret or keyfile")
+    if cfg.keyfile is not None and not os.path.exists(cfg.keyfile):
+        raise Exception("Keyfile doesn't exist")
+
+    if cfg.algorithm not in [
+        "HS256",
+        "HS384",
+        "HS512",
+        "RS256",
+        "RS384",
+        "RS512",
+        "ES256",
+        "ES384",
+        "ES512",
+        "PS256",
+        "PS384",
+        "PS512",
+        "EdDSA",
+    ]:
+        raise Exception(f"Unknown algorithm: '{cfg.algorithm}'")

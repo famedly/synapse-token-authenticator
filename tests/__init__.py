@@ -46,33 +46,36 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
         ):
             return "@alice:example.test"
 
-        cls._patcher1 = patch(
-            "synapse.module_api.ModuleApi.set_user_admin",
-            new=AsyncMock(side_effect=set_user_admin),
-        )
-        cls._patcher2 = patch(
-            "synapse.module_api.ModuleApi.is_user_admin",
-            new=AsyncMock(side_effect=is_user_admin),
-        )
-        cls._patcher3 = patch(
-            "synapse.module_api.ModuleApi.check_user_exists",
-            new=AsyncMock(return_value=True),
-        )
-        cls._patcher4 = patch(
-            "synapse.module_api.ModuleApi.register_user",
-            new=AsyncMock(side_effect=register_user),
-        )
-        cls._patcher1.start()
-        cls._patcher2.start()
-        cls._patcher3.start()
-        cls._patcher4.start()
+        cls.patchers = [
+            patch(
+                "synapse.module_api.ModuleApi.set_user_admin",
+                new=AsyncMock(side_effect=set_user_admin),
+            ),
+            patch(
+                "synapse.module_api.ModuleApi.is_user_admin",
+                new=AsyncMock(side_effect=is_user_admin),
+            ),
+            patch(
+                "synapse.module_api.ModuleApi.check_user_exists",
+                new=AsyncMock(return_value=True),
+            ),
+            patch(
+                "synapse.module_api.ModuleApi.register_user",
+                new=AsyncMock(side_effect=register_user),
+            ),
+            patch(
+                "synapse.handlers.profile.ProfileHandler.set_displayname",
+                new=AsyncMock(return_value=None),
+            ),
+        ]
+
+        for patcher in cls.patchers:
+            patcher.start()
 
     @classmethod
     def tearDownClass(cls):
-        cls._patcher1.stop()
-        cls._patcher2.stop()
-        cls._patcher3.stop()
-        cls._patcher4.stop()
+        for patcher in cls.patchers:
+            patcher.stop()
 
     # Ignore ARG001
     @override
@@ -104,6 +107,11 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                     "module": "synapse_token_authenticator.TokenAuthenticator",
                     "config": {
                         "jwt": {"secret": "foxies"},
+                        "custom_flow": {
+                            "algorithm": "HS512",
+                            "secret": "foxies",
+                            "notify_on_registration_uri": "http://example.test",
+                        },
                         "oidc": {
                             "issuer": "https://idp.example.test",
                             "client_id": "1111@project",

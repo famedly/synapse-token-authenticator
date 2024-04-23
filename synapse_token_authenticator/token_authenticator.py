@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 class TokenAuthenticator:
     __version__ = "0.0.0"
 
-    def __init__(self, config: dict, api: ModuleApi):
-        self.api = api
+    def __init__(self, config: dict, account_handler: ModuleApi):
+        self.api = account_handler
 
         auth_checkers = {}
 
@@ -65,6 +65,22 @@ class TokenAuthenticator:
             self.api.register_web_resource(
                 "/_famedly/login/com.famedly.login.token.oidc",
                 self.LoginMetadataResource(oidc),
+            )
+
+        if (custom_flow := getattr(self.config, "custom_flow", None)) is not None:
+            if custom_flow.secret:
+                k = {
+                    "k": base64.urlsafe_b64encode(
+                        custom_flow.secret.encode("utf-8")
+                    ).decode("utf-8"),
+                    "kty": "oct",
+                }
+                self.custom_flow_key = jwk.JWK(**k)
+            else:
+                with open(custom_flow.keyfile) as f:
+                    self.key = jwk.JWK.from_pem(f.read())
+            auth_checkers[("com.famedly.login.token.custom", ("token",))] = (
+                self.check_custom_flow
             )
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
@@ -266,6 +282,78 @@ class TokenAuthenticator:
             await self.api.register_user(user_id.localpart)
 
         user_id_str = self.api.get_qualified_user_id(username)
+
+        logger.info("All done and valid, logging in!")
+        return (user_id_str, None)
+
+    async def check_custom_flow(
+        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+    ) -> Optional[
+        tuple[
+            str,
+            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+        ]
+    ]:
+        logger.info("Receiving auth request")
+        if login_type != "com.famedly.login.token.custom":
+            logger.info("Wrong login type")
+            return None
+        if "token" not in login_dict:
+            logger.info("Missing token")
+            return None
+        token = login_dict["token"]
+
+        check_claims = {}
+
+        user_id_str = self.api.get_qualified_user_id(username)
+        check_claims["urn:messaging:matrix:localpart"] = username
+        check_claims["urn:messaging:matrix:mxid"] = user_id_str
+
+        if self.config.custom_flow.require_expiry:
+            check_claims["exp"] = None
+        try:
+            token = jwt.JWT(
+                jwt=token,
+                key=self.custom_flow_key,
+                check_claims=check_claims,
+                algs=[self.config.custom_flow.algorithm],
+            )
+        except ValueError as e:
+            logger.info("Unrecognized token %s", e)
+            return None
+        except JWException as e:
+            logger.info("Invalid token %s", e)
+            return None
+        payload = json_decode(token.claims)
+        sub = payload["sub"]
+        if not isinstance(sub, str):
+            logger.info("user_id isn't a string")
+            return None
+
+        if "name" not in payload:
+            logger.info("No name claim in payload")
+            return None
+
+        user_id = UserID.from_string(user_id_str)
+        user_exists = await self.api.check_user_exists(user_id_str)
+
+        if not user_exists:
+            logger.info("User doesn't exist, registering them...")
+            await self.api.register_user(user_id.localpart)
+
+            await self.api.http_client.post_json_get_json(
+                self.config.custom_flow.notify_on_registration_uri,
+                {"token": login_dict["token"]},
+            )
+
+            logger.info("Registered user %s (%s)", user_id, payload["name"])
+
+        await self.api._hs.get_profile_handler().set_displayname(
+            requester=synapse.types.create_requester(user_id),
+            target_user=user_id,
+            by_admin=True,
+            new_displayname=payload["name"],
+        )
 
         logger.info("All done and valid, logging in!")
         return (user_id_str, None)
