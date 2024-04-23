@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.6] - 2024-05-06
+
+### Features
+
+- Add custom jwt flow
+
 ## [0.4.5] - 2024-04-25
 
 ### Continuous Integration Pipeline
