@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2024-04-24
+
+### Bug Fixes
+
+- Basic auth utf8
+
 ## [0.4.3] - 2024-04-08
 
 ### Features
