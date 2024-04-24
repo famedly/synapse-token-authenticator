@@ -25,6 +25,6 @@ async def get_oidp_metadata(issuer, client) -> OpenIDProviderMetadata:
 
 def basic_auth(username: str, password: str) -> dict[bytes, bytes]:
     authorization = b64encode(
-        b":".join((username.encode("latin1"), password.encode("latin1")))
+        b":".join((username.encode("utf8"), password.encode("utf8")))
     )
     return {b"Authorization": [b"Basic " + authorization]}

@@ -54,6 +54,34 @@ class OIDCTests(ModuleApiTestCase):
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
     )
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@projectüш",
+                            "client_secret": "2222@projectüш",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allow_registration": True,
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    async def test_valid_login_unicode_client_id(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
+            "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
     async def test_valid_login_no_register(self, *args):
         result = await self.hs.mockmod.check_oidc_auth(
