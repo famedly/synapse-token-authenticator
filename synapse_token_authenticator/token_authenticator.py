@@ -341,9 +341,19 @@ class TokenAuthenticator:
             logger.info("User doesn't exist, registering them...")
             await self.api.register_user(user_id.localpart)
 
+            # notification_access_token
+            headers = {}
+            if self.config.custom_flow.notification_access_token is not None:
+                headers = {
+                    b"Authorization": [
+                        b"Bearer " + self.config.custom_flow.notification_access_token
+                    ]
+                }
+
             await self.api.http_client.post_json_get_json(
                 self.config.custom_flow.notify_on_registration_uri,
                 {"token": login_dict["token"]},
+                headers=headers,
             )
 
             logger.info("Registered user %s (%s)", user_id, payload["name"])

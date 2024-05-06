@@ -58,6 +58,9 @@ class TokenAuthenticatorConfig:
                     self.notify_on_registration_uri: str = other.get(
                         "notify_on_registration_uri"
                     )
+                    self.notification_access_token: str | None = other.get(
+                        "notification_access_token", None
+                    )
 
             self.custom_flow = CustomFlowConfig(custom_flow)
             verify_jwt_based_cfg(self.custom_flow)
