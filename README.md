@@ -48,6 +48,20 @@ oidc:
   allowed_client_ids: ['2897827328738@project_name']
   # Allow registration of new users, defaults to false (optional)
   allow_registration: false
+custom_flow:
+  # provide only one of secret, keyfile
+  secret: symetrical secret
+  keyfile: path to asymetrical keyfile
+
+  # Algorithm of the tokens, defaults to RS256 (optional)
+  algorithm: RS256
+  # Require tokens to have an expiry set, defaults to true (optional)
+  require_expiry: true
+  # This endpoint will be called when new user is registered
+  # with `{"token": <token>}` as its request body
+  notify_on_registration_uri: http://example.com/notify
+  # Bearer auth token for `notify_on_registration_uri` call (optional)
+  notification_access_token: 'my$3cr37'
 ```
 It is recommended to have `require_expiry` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
 
@@ -95,6 +109,37 @@ Next, the client needs to use these tokens and construct a payload to the login 
 }
 ```
 
+### Custom flow
+
+This is similar to jwt flow except few additinal claims are checked:
+- `name` claim must be present
+- `urn:messaging:matrix:localpart` claim must be equal to user name
+- `urn:messaging:matrix:mxid` claim must be valid mxid with localpart matching `urn:messaging:matrix:localpart` claim and domain name matching this homeserver domain
+
+```jsonc
+{
+  "type": "com.famedly.login.token.custom",
+  "identifier": {
+    "type": "m.id.user",
+    "user": "d2773fdb-91b5-4e77-9367-d4bd121afc48" // localpart, same as `urn:messaging:matrix:localpart` in JWT
+  },
+  "token": "<jwt IDToken here>"
+}
+```
+
+An example of a JWT payload:
+```jsonc
+{
+  "iss": "https://auth.example.com",
+  "sub": "8fd1ec9b-c054-4de0-bbd0-90d40ce9200e",
+  "exp": 1701432906,
+  "urn:messaging:matrix:mxid": "@d2773fdb-91b5-4e77-9367-d4bd121afc48:homserver.matrix.de",
+  "urn:messaging:matrix:localpart": "d2773fdb-91b5-4e77-9367-d4bd121afc48",
+  "name": "Alice Bob"
+}
+```
+
+Additionally, when a new user is registered, a POST json request is made with `{"token": <token>}` as its request body. The handler of the request must return any json due to some implementation details (synapse's `BaseHttpClient` poor interface)
 
 ## Testing
 
