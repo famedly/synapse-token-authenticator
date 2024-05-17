@@ -215,14 +215,15 @@ class TokenAuthenticator:
             return None
         token = login_dict["token"]
 
+        client = self.api._hs.get_proxied_http_client()
         oidc = self.config.oidc
-        oidc_metadata = await get_oidp_metadata(oidc.issuer, self.api.http_client)
+        oidc_metadata = await get_oidp_metadata(oidc.issuer, client)
 
         # Further validation using token introspection
         data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
 
         try:
-            introspection_resp = await self.api.http_client.post_json_get_json(
+            introspection_resp = await client.post_json_get_json(
                 oidc_metadata.introspection_endpoint,
                 data,
                 headers=basic_auth(oidc.client_id, oidc.client_secret),
@@ -303,6 +304,8 @@ class TokenAuthenticator:
             return None
         token = login_dict["token"]
 
+        client = self.api._hs.get_proxied_http_client()
+
         check_claims = {}
 
         user_id_str = self.api.get_qualified_user_id(username)
@@ -350,7 +353,7 @@ class TokenAuthenticator:
                     ]
                 }
 
-            await self.api.http_client.post_json_get_json(
+            await client.post_json_get_json(
                 self.config.custom_flow.notify_on_registration_uri,
                 {"token": login_dict["token"]},
                 headers=headers,
