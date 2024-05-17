@@ -37,7 +37,8 @@ jwt:
   # Require tokens to have an expiry set, defaults to true (optional)
   require_expiry: true
 oidc:
-  issuer: "https://idp.example.com"
+  # Include trailing slash
+  issuer: "https://idp.example.com/"
   client_id: "<IDP client id>"
   client_secret: "<IDP client secret>"
   # Zitadel Organization ID, used for masking. (Optional)

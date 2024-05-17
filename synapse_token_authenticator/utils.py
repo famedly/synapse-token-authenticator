@@ -18,7 +18,7 @@ class OpenIDProviderMetadata:
 
 async def get_oidp_metadata(issuer, client) -> OpenIDProviderMetadata:
     config = await client.get_json(
-        urljoin(issuer, "/.well-known/openid-configuration"),
+        urljoin(issuer, ".well-known/openid-configuration"),
     )
     return OpenIDProviderMetadata(issuer, config)
 
