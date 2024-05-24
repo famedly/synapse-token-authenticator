@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2024-05-24
+
+### Bug Fixes
+
+- Use SimpleHttpClient with proxy enabled
+- [**breaking**]: Account for baseurl with path in oidc metadata
+  - The oidc issuer base URL must be configured with a trailing slash to function properly, this must be checked in existing configurations.
+- Post introspection req urlencoded
+
 ## [0.4.6] - 2024-05-06
 
 ### Features
