@@ -14,10 +14,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import base64
-import json
+import logging
 import time
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
+from urllib.parse import parse_qs
 
 from jwcrypto import jwk, jwt
 from synapse.server import HomeServer
@@ -29,6 +30,7 @@ import tests.unittest as synapsetest
 from tests.test_utils import FakeResponse as Response
 
 admins = {}
+logger = logging.getLogger(__name__)
 
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
@@ -181,15 +183,15 @@ def mock_idp_get(uri, **kwargs):
 
 
 def mock_idp_post(uri, data_raw, **kwargs):
-    data = json.loads(data_raw)
+    query = data_raw.decode()
+    data = parse_qs(query)
     hostname = "https://idp.example.test"
-
     if uri == f"{hostname}/oauth/v2/introspect":
         # Fail if no access token is provided
         if data is None:
             return Response(code=401)
         # Fail if access token is incorrect
-        if data["token"] != "zitadel_access_token":
+        if data.get("token")[0] != "zitadel_access_token":
             return Response(code=401)
 
         return Response.json(

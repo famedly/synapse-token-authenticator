@@ -223,7 +223,7 @@ class TokenAuthenticator:
         data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
 
         try:
-            introspection_resp = await client.post_json_get_json(
+            introspection_resp = await client.post_urlencoded_get_json(
                 oidc_metadata.introspection_endpoint,
                 data,
                 headers=basic_auth(oidc.client_id, oidc.client_secret),
