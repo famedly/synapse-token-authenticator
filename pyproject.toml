@@ -41,7 +41,7 @@ dependencies = [
   "ruff",
 ]
 [tool.hatch.envs.default.scripts]
-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
+cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests {args}"
 format = "black ."
 lint = "ruff check ."
 

@@ -16,6 +16,7 @@
 import base64
 import logging
 import time
+import json
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import parse_qs
@@ -109,11 +110,6 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                     "module": "synapse_token_authenticator.TokenAuthenticator",
                     "config": {
                         "jwt": {"secret": "foxies"},
-                        "custom_flow": {
-                            "algorithm": "HS512",
-                            "secret": "foxies",
-                            "notify_on_registration_uri": "http://example.test",
-                        },
                         "oidc": {
                             "issuer": "https://idp.example.test",
                             "client_id": "1111@project",
@@ -121,20 +117,35 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                             "project_id": "231872387283",
                             "organization_id": "2283783782778",
                         },
+                        "oauth": {
+                            "jwt_validation": {
+                                "validator": ["exist"],
+                                "require_expiry": True,
+                                "localpart_path": "urn:messaging:matrix:localpart",
+                                "fq_uid_path": "urn:messaging:matrix:mxid",
+                                "required_scopes": "foo bar",
+                                "jwk_set": get_jwk(),
+                            },
+                            "username_type": "user_id",
+                            "registration_enabled": True,
+                        },
                     },
                 }
             ]
         return conf
 
 
+def get_jwk(secret="foxies"):
+    return jwk.JWK(
+        k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
+        kty="oct",
+    )
+
+
 def get_jwt_token(
     username, exp_in=None, secret="foxies", algorithm="HS512", admin=None, claims=None
 ):
-    k = {
-        "k": base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
-        "kty": "oct",
-    }
-    key = jwk.JWK(**k)
+    key = get_jwk(secret)
     if claims is None:
         claims = {}
     claims["sub"] = username
@@ -206,3 +217,43 @@ def mock_idp_post(uri, data_raw, **kwargs):
         )
     else:
         return Response(code=404)
+
+
+def mock_for_oauth(method, uri, data=None, **extrargs):
+    match (method, uri):
+        case ("POST", "http://idp.test/introspect"):
+            data = parse_qs(data.decode())
+            match data:
+                case {"token": _}:
+                    pass
+                case _:
+                    logger.error(f"Bad introspect request: {data}")
+                    return Response(code=400)
+            return Response.json(
+                payload={
+                    "active": True,
+                    "localpart": "alice",
+                    "scope": "bar foo",
+                    "name": "Alice",
+                }
+            )
+        case ("POST", "http://iop.test/notify"):
+            data = json.loads(data)
+            match data:
+                case {
+                    "localpart": _,
+                    "fully_qualified_uid": _,
+                    "displayname": _,
+                }:
+                    assert data == {
+                        "localpart": "alice",
+                        "fully_qualified_uid": "@alice:example.test",
+                        "displayname": "Alice",
+                    }
+                case _:
+                    logger.error(f"Bad notify request: {data}")
+                    return Response(code=400)
+            return Response.json(payload=None)
+        case (m, u):
+            logger.error(f"Unknown request {m} {u}")
+            return Response(code=404)

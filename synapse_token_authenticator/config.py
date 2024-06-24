@@ -1,4 +1,13 @@
 import os
+from dataclasses import dataclass, field
+from typing import List, Literal, Union, TypeAlias, Any
+from jwcrypto.jwk import JWK, JWKSet
+from synapse_token_authenticator.claims_validator import (
+    parse_validator,
+    Validator,
+    Exist,
+)
+from synapse_token_authenticator.utils import bearer_auth, basic_auth
 
 
 class TokenAuthenticatorConfig:
@@ -46,24 +55,99 @@ class TokenAuthenticatorConfig:
 
             self.oidc = OIDCConfig(oidc)
 
-        if custom_flow := other.get("custom_flow"):
+        if config := other.get("oauth"):
 
-            class CustomFlowConfig:
-                def __init__(self, other: dict):
-                    self.secret: str | None = other.get("secret")
-                    self.keyfile: str | None = other.get("keyfile")
+            Path: TypeAlias = Union[str, List[str]]
 
-                    self.algorithm: str = other.get("algorithm", "RS256")
-                    self.require_expiry: bool = other.get("require_expiry", True)
-                    self.notify_on_registration_uri: str = other.get(
-                        "notify_on_registration_uri"
-                    )
-                    self.notification_access_token: str | None = other.get(
-                        "notification_access_token", None
-                    )
+            @dataclass
+            class JwtValidationConfig:
+                validator: Validator = field(default_factory=Exist)
+                require_expiry: bool = False
+                localpart_path: Path | None = None
+                user_id_path: Path | None = None
+                fq_uid_path: Path | None = None
+                displayname_path: Path | None = None
+                required_scopes: str | List[str] | None = None
+                jwk_set: JWKSet | JWK | None = None
+                jwk_file: str | None = None
 
-            self.custom_flow = CustomFlowConfig(custom_flow)
-            verify_jwt_based_cfg(self.custom_flow)
+                def __post_init__(self):
+                    if not isinstance(self.validator, Exist):
+                        self.validator = parse_validator(self.validator)
+
+                    if self.jwk_set and ("keys" in self.jwk_set):
+                        self.jwk_set = JWKSet(**self.jwk_set)
+                    elif self.jwk_set:
+                        self.jwk_set = JWK(**self.jwk_set)
+                    elif self.jwk_file:
+                        with open(self.jwk_file) as f:
+                            self.jwk_set = JWK.from_pem(f.read())
+                    else:
+                        raise Exception("No JWK")
+
+            @dataclass
+            class IntrospectionValidationConfig:
+                endpoint: str
+                validator: Validator = field(default_factory=Exist)
+                auth: HttpAuth = field(default_factory=NoAuth)
+                localpart_path: Path | None = None
+                user_id_path: Path | None = None
+                fq_uid_path: Path | None = None
+                displayname_path: Path | None = None
+                required_scopes: str | List[str] | None = None
+
+                def __post_init__(self):
+                    if not isinstance(self.validator, Exist):
+                        self.validator = parse_validator(self.validator)
+
+                    if not isinstance(self.auth, NoAuth):
+                        self.auth = parse_auth(self.auth)
+
+            @dataclass
+            class NotifyOnRegistration:
+                url: str
+                auth: HttpAuth = field(default_factory=NoAuth)
+                interrupt_on_error: bool = True
+
+                def __post_init__(self):
+                    if not isinstance(self.auth, NoAuth):
+                        self.auth = parse_auth(self.auth)
+
+            @dataclass
+            class OAuthConfig:
+                jwt_validation: JwtValidationConfig | None = None
+                introspection_validation: IntrospectionValidationConfig | None = None
+                username_type: Literal["fq_uid", "localpart", "user_id"] | None = None
+                notify_on_registration: NotifyOnRegistration | None = None
+                expose_metadata_resource: Any = None
+                registration_enabled: bool = False
+
+                def __post_init__(self):
+                    if self.notify_on_registration:
+                        self.notify_on_registration = NotifyOnRegistration(
+                            **self.notify_on_registration
+                        )
+                    if self.jwt_validation:
+                        self.jwt_validation = JwtValidationConfig(
+                            **(self.jwt_validation)
+                        )
+                    if self.introspection_validation:
+                        self.introspection_validation = IntrospectionValidationConfig(
+                            **self.introspection_validation
+                        )
+                    if not (self.jwt_validation or self.introspection_validation):
+                        raise Exception(
+                            "Neither jwt_validation nor introspection_validation was specified"
+                        )
+                    if self.username_type not in [
+                        "fq_uid",
+                        "localpart",
+                        "user_id",
+                        None,
+                    ]:
+                        raise Exception(f"Unknown username_type {self.username_type}")
+
+            self.oauth = OAuthConfig(**config)
 
 
 def verify_jwt_based_cfg(cfg):
@@ -88,3 +172,56 @@ def verify_jwt_based_cfg(cfg):
         "EdDSA",
     ]:
         raise Exception(f"Unknown algorithm: '{cfg.algorithm}'")
+
+
+@dataclass
+class NoAuth:
+    def header_map(self):
+        return {}
+
+
+@dataclass
+class BasicAuth:
+    username: str
+    password: str
+
+    def header_map(self):
+        return basic_auth(self.username, self.password)
+
+
+@dataclass
+class BearerAuth:
+    token: str
+
+    def header_map(self):
+        return bearer_auth(self.token)
+
+
+HttpAuth: TypeAlias = Union[BasicAuth, BearerAuth, NoAuth]
+
+
+def parse_auth(d: dict) -> HttpAuth:
+    if isinstance(d, dict):
+        type = d.pop("type")
+        match type:
+            case None:
+                return NoAuth()
+            case "basic":
+                return BasicAuth(**d)
+            case "bearer":
+                return BearerAuth(**d)
+            case t:
+                raise Exception(f"Unknown HttpAuth type {t}")
+    elif isinstance(d, list):
+        type = d.pop(0)
+        match type:
+            case None:
+                return NoAuth()
+            case "basic":
+                return BasicAuth(*d)
+            case "bearer":
+                return BearerAuth(*d)
+            case t:
+                raise Exception(f"Unknown HttpAuth type {t}")
+    else:
+        raise Exception("HttpAuth parsing failed, expected list or dict")

@@ -29,7 +29,15 @@ from synapse.types import UserID
 from twisted.web import resource
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
-from synapse_token_authenticator.utils import get_oidp_metadata, basic_auth
+from synapse_token_authenticator.utils import (
+    get_oidp_metadata,
+    basic_auth,
+    validate_scopes,
+    all_list_elems_are_equal_return_the_elem,
+    get_path_in_dict,
+    if_not_none,
+    MetadataResource,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,20 +75,16 @@ class TokenAuthenticator:
                 self.LoginMetadataResource(oidc),
             )
 
-        if (custom_flow := getattr(self.config, "custom_flow", None)) is not None:
-            if custom_flow.secret:
-                k = {
-                    "k": base64.urlsafe_b64encode(
-                        custom_flow.secret.encode("utf-8")
-                    ).decode("utf-8"),
-                    "kty": "oct",
-                }
-                self.custom_flow_key = jwk.JWK(**k)
-            else:
-                with open(custom_flow.keyfile) as f:
-                    self.key = jwk.JWK.from_pem(f.read())
-            auth_checkers[("com.famedly.login.token.custom", ("token",))] = (
-                self.check_custom_flow
+        if (cfg := getattr(self.config, "oauth", None)) is not None:
+            if cfg.expose_metadata_resource:
+                resource_name = cfg.expose_metadata_resource["name"]
+                self.api.register_web_resource(
+                    f"/_famedly/login/{resource_name}",
+                    MetadataResource(cfg.expose_metadata_resource),
+                )
+
+            auth_checkers[("com.famedly.login.token.oauth", ("token",))] = (
+                self.check_oauth
             )
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
@@ -123,7 +127,7 @@ class TokenAuthenticator:
             return None
         token = login_dict["token"]
 
-        check_claims = {}
+        check_claims: dict = {}
         if self.config.jwt.require_expiry:
             check_claims["exp"] = None
         try:
@@ -167,7 +171,7 @@ class TokenAuthenticator:
 
         if user_id.domain != self.api.server_name:
             logger.info("user_id isn't for our homeserver")
-            return
+            return None
 
         if user_id_str != token_user_id_str:
             logger.info("Non-matching user")
@@ -287,7 +291,7 @@ class TokenAuthenticator:
         logger.info("All done and valid, logging in!")
         return (user_id_str, None)
 
-    async def check_custom_flow(
+    async def check_oauth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
     ) -> Optional[
         tuple[
@@ -295,8 +299,9 @@ class TokenAuthenticator:
             Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
         ]
     ]:
+        config = self.config.oauth
         logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.custom":
+        if login_type != "com.famedly.login.token.oauth":
             logger.info("Wrong login type")
             return None
         if "token" not in login_dict:
@@ -306,70 +311,195 @@ class TokenAuthenticator:
 
         client = self.api._hs.get_proxied_http_client()
 
-        check_claims = {}
+        jwt_claims = {}
 
-        user_id_str = self.api.get_qualified_user_id(username)
-        check_claims["urn:messaging:matrix:localpart"] = username
-        check_claims["urn:messaging:matrix:mxid"] = user_id_str
+        if config.jwt_validation is not None:
+            check_claims: dict = {}
+            if config.jwt_validation.require_expiry:
+                check_claims["exp"] = None
+            try:
+                token = jwt.JWT(
+                    jwt=token,
+                    key=config.jwt_validation.jwk_set,
+                    check_claims=check_claims,
+                )
+            except ValueError as e:
+                logger.info("Unrecognized token %s", e)
+                return None
+            except JWException as e:
+                logger.info("Invalid token %s", e)
+                return None
 
-        if self.config.custom_flow.require_expiry:
-            check_claims["exp"] = None
+            jwt_claims = json_decode(token.claims)
+
+            if config.jwt_validation.required_scopes:
+                provided_scope = jwt_claims.get("scope")
+                if not isinstance(provided_scope, str):
+                    logger.info("Token missing scope claim")
+                    return None
+
+                if not validate_scopes(
+                    config.jwt_validation.required_scopes, provided_scope
+                ):
+                    logger.info("Token scope validation failed")
+                    return None
+
+            if not config.jwt_validation.validator.validate(jwt_claims):
+                logger.info("Token claims validation failed")
+                return None
+
+        introspection_claims = {}
+
+        if config.introspection_validation is not None:
+            try:
+                introspection_claims = await client.post_urlencoded_get_json(
+                    config.introspection_validation.endpoint,
+                    {"token": token},
+                    headers=config.introspection_validation.auth.header_map(),
+                )
+            except HttpResponseException as e:
+                if e.code == 401:
+                    logger.info("Introspection auth failed")
+                    return None
+                else:
+                    raise e
+
+            if config.introspection_validation.required_scopes:
+                provided_scope = introspection_claims.get("scope")
+                if not isinstance(provided_scope, str):
+                    logger.info("Token missing scope claim")
+                    return None
+
+                if not validate_scopes(
+                    config.introspection_validation.required_scopes, provided_scope
+                ):
+                    logger.info("Token scope validation failed")
+                    return None
+
+            if not config.introspection_validation.validator.validate(
+                introspection_claims
+            ):
+                logger.info("Introspection response validation failed for a token")
+                return None
+
+        # getting localpart and fully qualified user_id, validate all sources for equality
+
+        def get_from_set(set_):
+            return if_not_none(lambda path: get_path_in_dict(path, set_))
+
+        username_type = config.username_type
+
         try:
-            token = jwt.JWT(
-                jwt=token,
-                key=self.custom_flow_key,
-                check_claims=check_claims,
-                algs=[self.config.custom_flow.algorithm],
+            get_localpart_mb = if_not_none(lambda x: x.localpart_path)
+
+            localpart = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_from_set(jwt_claims)(get_localpart_mb(config.jwt_validation)),
+                    get_from_set(introspection_claims)(
+                        get_localpart_mb(config.introspection_validation)
+                    ),
+                    username if username_type == "localpart" else None,
+                    (
+                        UserID.from_string(username).localpart
+                        if username_type == "fq_uid"
+                        else None
+                    ),
+                    (
+                        UserID.from_string(
+                            self.api.get_qualified_user_id(username)
+                        ).localpart
+                        if username_type == "user_id"
+                        else None
+                    ),
+                ]
             )
-        except ValueError as e:
-            logger.info("Unrecognized token %s", e)
-            return None
-        except JWException as e:
-            logger.info("Invalid token %s", e)
-            return None
-        payload = json_decode(token.claims)
-        sub = payload["sub"]
-        if not isinstance(sub, str):
-            logger.info("user_id isn't a string")
+
+            get_fq_uid_mb = if_not_none(lambda x: x.fq_uid_path)
+
+            fully_qualified_uid = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_from_set(jwt_claims)(get_fq_uid_mb(config.jwt_validation)),
+                    get_from_set(introspection_claims)(
+                        get_fq_uid_mb(config.introspection_validation)
+                    ),
+                    username if username_type == "fq_uid" else None,
+                    (
+                        self.api.get_qualified_user_id(username)
+                        if username_type == "user_id"
+                        else None
+                    ),
+                    (
+                        self.api.get_qualified_user_id(username)
+                        if username_type == "localpart"
+                        else None
+                    ),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
             return None
 
-        if "name" not in payload:
-            logger.info("No name claim in payload")
+        if localpart is None and fully_qualified_uid is None:
+            logger.info("No user id was provided")
             return None
 
-        user_id = UserID.from_string(user_id_str)
-        user_exists = await self.api.check_user_exists(user_id_str)
+        if localpart is None:
+            localpart = UserID.from_string(fully_qualified_uid).localpart
 
-        if not user_exists:
+        if fully_qualified_uid is None:
+            fully_qualified_uid = self.api.get_qualified_user_id(localpart)
+
+        try:
+            get_displayname_mb = if_not_none(lambda x: x.displayname_path)
+            displayname = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_from_set(jwt_claims)(get_displayname_mb(config.jwt_validation)),
+                    get_from_set(introspection_claims)(
+                        get_displayname_mb(config.introspection_validation)
+                    ),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
+            return None
+
+        user_exists = await self.api.check_user_exists(fully_qualified_uid)
+
+        if not user_exists and config.registration_enabled:
             logger.info("User doesn't exist, registering them...")
-            await self.api.register_user(user_id.localpart)
+            if config.notify_on_registration:
+                try:
+                    await client.post_json_get_json(
+                        config.notify_on_registration.url,
+                        {
+                            "localpart": localpart,
+                            "fully_qualified_uid": fully_qualified_uid,
+                            "displayname": displayname,
+                        },
+                        headers=config.notify_on_registration.auth.header_map(),
+                    )
+                except ValueError:
+                    pass
+                except HttpResponseException as e:
+                    logger.info(e)
+                    if config.notify_on_registration.interrupt_on_error:
+                        return None
 
-            # notification_access_token
-            headers = {}
-            if self.config.custom_flow.notification_access_token is not None:
-                headers = {
-                    b"Authorization": [
-                        b"Bearer " + self.config.custom_flow.notification_access_token
-                    ]
-                }
+            await self.api.register_user(localpart)
 
-            await client.post_json_get_json(
-                self.config.custom_flow.notify_on_registration_uri,
-                {"token": login_dict["token"]},
-                headers=headers,
+            logger.info("Registered user %s (%s)", localpart, displayname)
+
+        if displayname:
+            user_id = UserID.from_string(fully_qualified_uid)
+            await self.api._hs.get_profile_handler().set_displayname(
+                requester=synapse.types.create_requester(user_id),
+                target_user=user_id,
+                by_admin=True,
+                new_displayname=displayname,
             )
-
-            logger.info("Registered user %s (%s)", user_id, payload["name"])
-
-        await self.api._hs.get_profile_handler().set_displayname(
-            requester=synapse.types.create_requester(user_id),
-            target_user=user_id,
-            by_admin=True,
-            new_displayname=payload["name"],
-        )
 
         logger.info("All done and valid, logging in!")
-        return (user_id_str, None)
+        return (fully_qualified_uid, None)
 
     @staticmethod
     def parse_config(config: dict):
