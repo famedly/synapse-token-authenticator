@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2024-07-01
+
+### Refactoring
+
+- [**breaking**] Custom flow into configurable oauth
+
 ## [0.5.0] - 2024-05-24
 
 ### Bug Fixes
