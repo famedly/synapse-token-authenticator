@@ -234,6 +234,7 @@ class TokenAuthenticator:
                 return None
             else:
                 raise e
+        logger.debug("Introspection response: '{introspection_resp}'")
 
         if not introspection_resp["active"]:
             logger.info("User is not active")
