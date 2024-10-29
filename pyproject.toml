@@ -23,7 +23,13 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["jwcrypto", "twisted"]
+dependencies = [
+  "jwcrypto",
+  "twisted",
+  # We need to pin this because of https://github.com/element-hq/synapse/issues/17882
+  # TODO: Remove this dependency when we can
+  "Twisted==24.7.0"
+]
 version = "0.6.0"
 
 [project.urls]
@@ -46,9 +52,7 @@ format = "black ."
 lint = "ruff check ."
 
 [tool.hatch.envs.ci.scripts]
-format = "black --check ."
-head-cov = "pytest --cov-report=lcov:../head.lcov --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
-base-cov = "pytest --cov-report=lcov:../base.lcov --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
+cov = "pytest --cov-report=lcov:lcov.info --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
 
 [tool.coverage.run]
 branch = true
