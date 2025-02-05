@@ -22,6 +22,7 @@ from urllib.parse import urljoin
 
 import synapse
 from jwcrypto import jwk, jwt
+from jwcrypto.jwk import JWKSet
 from jwcrypto.common import JWException, json_decode
 from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
@@ -317,6 +318,11 @@ class TokenAuthenticator:
             check_claims: dict = {}
             if config.jwt_validation.require_expiry:
                 check_claims["exp"] = None
+            if config.jwt_validation.jwks_endpoint:
+                jwks_json = await client.get_raw(
+                    config.jwt_validation.jwks_endpoint,
+                )
+                config.jwt_validation.jwk_set = JWKSet.from_json(jwks_json)
             try:
                 token = jwt.JWT(
                     jwt=token,

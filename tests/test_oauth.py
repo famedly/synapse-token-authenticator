@@ -19,6 +19,7 @@ import tests.unittest as synapsetest
 
 from . import ModuleApiTestCase, get_jwt_token, get_jwk, mock_for_oauth
 from copy import deepcopy
+from jwcrypto.jwk import JWKSet
 
 default_claims = {
     "urn:messaging:matrix:localpart": "alice",
@@ -94,25 +95,25 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result, None)
 
-    @synapsetest.override_config(
-        {
-            "modules": [
-                {
-                    "module": "synapse_token_authenticator.TokenAuthenticator",
-                    "config": {
-                        "oauth": {
-                            "jwt_validation": {
-                                "validator": ["exist"],
-                                "require_expiry": False,
-                                "jwk_set": get_jwk(),
-                            },
-                            "username_type": "user_id",
+    config_for_jwt = {
+        "modules": [
+            {
+                "module": "synapse_token_authenticator.TokenAuthenticator",
+                "config": {
+                    "oauth": {
+                        "jwt_validation": {
+                            "validator": ["exist"],
+                            "require_expiry": False,
+                            "jwk_set": get_jwk(),
                         },
+                        "username_type": "user_id",
                     },
-                }
-            ]
-        }
-    )
+                },
+            }
+        ]
+    }
+
+    @synapsetest.override_config(config_for_jwt)
     async def test_token_no_expiry_with_config(self, *args):
         token = get_jwt_token("aliceid", exp_in=-1, claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
@@ -146,6 +147,28 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
+
+    config_for_jwt_jwks_url = deepcopy(config_for_jwt)
+    config_for_jwt_jwks_url["modules"][0]["config"]["oauth"]["jwt_validation"].pop(
+        "jwk_set"
+    )
+    config_for_jwt_jwks_url["modules"][0]["config"]["oauth"]["jwt_validation"][
+        "jwks_endpoint"
+    ] = "https://my_idp.com/oauth/v2/keys"
+    jwks = JWKSet()
+    jwks.add(get_jwk())
+
+    @synapsetest.override_config(config_for_jwt_jwks_url)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
+    )
+    async def test_fetch_jwks(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        print(f"result:\n{result}")
+        self.assertEqual(result[0], "@alice:example.test")
 
     config_for_introspection = {
         "modules": [

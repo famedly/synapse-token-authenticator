@@ -70,6 +70,7 @@ class TokenAuthenticatorConfig:
                 required_scopes: str | List[str] | None = None
                 jwk_set: JWKSet | JWK | None = None
                 jwk_file: str | None = None
+                jwks_endpoint: str | None = None
 
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
@@ -82,7 +83,7 @@ class TokenAuthenticatorConfig:
                     elif self.jwk_file:
                         with open(self.jwk_file) as f:
                             self.jwk_set = JWK.from_pem(f.read())
-                    else:
+                    elif not self.jwks_endpoint:
                         raise Exception("No JWK")
 
             @dataclass

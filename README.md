@@ -119,8 +119,9 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 | `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
 | `jwk_file`         | String (optional)                                         |
+| `jwks_endpoint`    | String (optional)                                         |
 
-Either `jwk_set` or `jwk_file` must be specified.
+Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 
 
 ### IntrospectionValidationConfig

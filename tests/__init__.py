@@ -135,17 +135,24 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
         return conf
 
 
-def get_jwk(secret="foxies"):
+def get_jwk(secret="foxies", id="123456"):
     return jwk.JWK(
         k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
         kty="oct",
+        kid=id,
     )
 
 
 def get_jwt_token(
-    username, exp_in=None, secret="foxies", algorithm="HS512", admin=None, claims=None
+    username,
+    exp_in=None,
+    secret="foxies",
+    algorithm="HS512",
+    admin=None,
+    claims=None,
+    id="123456",
 ):
-    key = get_jwk(secret)
+    key = get_jwk(secret, id)
     if claims is None:
         claims = {}
     claims["sub"] = username
@@ -157,7 +164,7 @@ def get_jwt_token(
             claims["exp"] = int(time.time()) + 120
         else:
             claims["exp"] = int(time.time()) + exp_in
-    token = jwt.JWT(header={"alg": algorithm}, claims=claims)
+    token = jwt.JWT(header={"alg": algorithm, "kid": id}, claims=claims)
     token.make_signed_token(key)
     return token.serialize()
 
