@@ -2,32 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.6.0] - 2024-07-01
+## [0.7.0] - 2025-02-10
+
+### Features
+
+- Add jwks fetch from idp
+
+## [0.6.0] - 2024-07-02
 
 ### Refactoring
 
-- [**breaking**] Custom flow into configurable oauth
+- [**breaking**] Refactor custom flow into configurable oauth
 
 ## [0.5.0] - 2024-05-24
 
 ### Bug Fixes
 
 - Use SimpleHttpClient with proxy enabled
-- [**breaking**]: Account for baseurl with path in oidc metadata
-  - The oidc issuer base URL must be configured with a trailing slash to function properly, this must be checked in existing configurations.
+- Account for baseurl with path in oidc metadata
 - Post introspection req urlencoded
 
-## [0.4.6] - 2024-05-06
+## [0.4.6] - 2024-05-13
+
+### Documentation
+
+- Custom flow
 
 ### Features
 
-- Add custom jwt flow
-
-## [0.4.5] - 2024-04-25
-
-### Continuous Integration Pipeline
-
-- Bump pypi publish action
+- Add jwt custom flow
+- Add bearer access token to custom flow
 
 ## [0.4.4] - 2024-04-24
 
@@ -45,20 +49,23 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-- Fix proxy notation
+- Correctly define proxies
 
 ## [0.4.1] - 2024-01-31
 
 ### Bug Fixes
 
-- Ignore system proxy as workaround
+- Ignore system proxy configuration
 
-## [0.4.0] - 2024-01-10
+## [0.4.0] - 2024-01-11
+
+### Documentation
+
+- Document publishing process
 
 ### Features
 
 - [**breaking**] Add OIDC login flow
-  - Previously available config options have been moved under the `jwt` key. See `README.md` for an example.
 
 ### Miscellaneous Tasks
 
