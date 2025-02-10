@@ -67,6 +67,7 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
+                admin_path: Path | None = None
                 required_scopes: str | List[str] | None = None
                 jwk_set: JWKSet | JWK | None = None
                 jwk_file: str | None = None
@@ -95,6 +96,7 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
+                admin_path: Path | None = None
                 required_scopes: str | List[str] | None = None
 
                 def __post_init__(self):

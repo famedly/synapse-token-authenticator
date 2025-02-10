@@ -242,6 +242,10 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
                     "localpart": "alice",
                     "scope": "bar foo",
                     "name": "Alice",
+                    "roles": {
+                        "OrgAdmin": ["123456"],
+                        "Admin": ["123456"],
+                    },
                 }
             )
         case ("POST", "http://iop.test/notify"):

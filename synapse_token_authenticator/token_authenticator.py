@@ -469,6 +469,20 @@ class TokenAuthenticator:
             logger.info(e)
             return None
 
+        try:
+            get_admin_mb = if_not_none(lambda x: x.admin_path)
+            admin = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_from_set(jwt_claims)(get_admin_mb(config.jwt_validation)),
+                    get_from_set(introspection_claims)(
+                        get_admin_mb(config.introspection_validation)
+                    ),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
+            return None
+
         user_exists = await self.api.check_user_exists(fully_qualified_uid)
 
         if not user_exists and config.registration_enabled:
@@ -491,7 +505,7 @@ class TokenAuthenticator:
                     if config.notify_on_registration.interrupt_on_error:
                         return None
 
-            await self.api.register_user(localpart)
+            await self.api.register_user(localpart, admin=bool(admin))
 
             logger.info("Registered user %s (%s)", localpart, displayname)
 
