@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2025-02-11
+
+### Chores
+
+- Update CI publish workflow
+
 ## [0.8.0] - 2025-02-11
 
 ### Features
