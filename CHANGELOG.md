@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.0] - 2025-02-10
+## [0.8.0] - 2025-02-11
+
+### Features
+
+- Add option to oauth to make an user admin on their first login
+
+## [0.7.0] - 2025-02-10 (never published)
 
 ### Features
 
