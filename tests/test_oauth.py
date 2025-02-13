@@ -30,6 +30,7 @@ default_claims = {
         "OrgAdmin": ["123456"],
         "Admin": ["123456"],
     },
+    "email": "alice@test.example",
 }
 
 
@@ -136,6 +137,10 @@ class CustomFlowTests(ModuleApiTestCase):
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.post_json_get_json", return_value={}
     )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     async def test_valid_login_register(self, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
@@ -187,6 +192,10 @@ class CustomFlowTests(ModuleApiTestCase):
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
     )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_register_admin(self, register_user_mock, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
@@ -207,6 +216,10 @@ class CustomFlowTests(ModuleApiTestCase):
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
     )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_register_admin_negative(self, register_user_mock, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
@@ -215,6 +228,60 @@ class CustomFlowTests(ModuleApiTestCase):
         )
 
         register_user_mock.assert_called_with("alice", admin=False)
+        self.assertEqual(result[0], "@alice:example.test")
+
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
+    )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_login_register_external_user_id(self, external_id_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+
+        external_id_mock.assert_called_with(
+            auth_provider_id="http://test.example",
+            remote_user_id="aliceid",
+            registered_user_id="@alice:example.test",
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_jwt_email_path = deepcopy(config_for_jwt_admin_path)
+    config_for_jwt_email_path["modules"][0]["config"]["oauth"]["jwt_validation"][
+        "email_path"
+    ] = "email"
+
+    @synapsetest.override_config(config_for_jwt_email_path)
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
+    )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch(
+        "synapse.storage.databases.main.RegistrationStore.user_add_threepid",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_login_register_threepid(self, add_threepid_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+
+        add_threepid_mock.assert_called_with(
+            "@alice:example.test",
+            medium="email",
+            address="alice@test.example",
+            validated_at=mock.ANY,
+            added_at=mock.ANY,
+        )
         self.assertEqual(result[0], "@alice:example.test")
 
     config_for_introspection = {
@@ -244,6 +311,10 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
     )
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     async def test_valid_login_introspection(self, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
@@ -280,6 +351,10 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
     )
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     async def test_login_introspection_notify_fails_but_ok(self, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
@@ -315,6 +390,10 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
     )
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_introspection_register_admin(self, register_user_mock, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
@@ -322,4 +401,56 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         register_user_mock.assert_called_with("alice", admin=True)
+        self.assertEqual(result[0], "@alice:example.test")
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_login_introspection_external_user_id(self, external_id_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        external_id_mock.assert_called_with(
+            auth_provider_id="http://test.example",
+            remote_user_id="aliceid",
+            registered_user_id="@alice:example.test",
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_introspection_email_path = deepcopy(config_for_introspection)
+    config_for_introspection_email_path["modules"][0]["config"]["oauth"][
+        "introspection_validation"
+    ]["email_path"] = "email"
+
+    @synapsetest.override_config(config_for_introspection_email_path)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch(
+        "synapse.storage.databases.main.RegistrationStore.user_add_threepid",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_login_introspection_threepid(self, add_threepid_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        add_threepid_mock.assert_called_with(
+            "@alice:example.test",
+            medium="email",
+            address="alice@test.example",
+            validated_at=mock.ANY,
+            added_at=mock.ANY,
+        )
         self.assertEqual(result[0], "@alice:example.test")

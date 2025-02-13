@@ -156,6 +156,7 @@ def get_jwt_token(
     if claims is None:
         claims = {}
     claims["sub"] = username
+    claims["iss"] = "http://test.example"
     if admin is not None:
         claims.update({"admin": admin})
 
@@ -246,6 +247,9 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
                         "OrgAdmin": ["123456"],
                         "Admin": ["123456"],
                     },
+                    "email": "alice@test.example",
+                    "sub": "aliceid",
+                    "iss": "http://test.example",
                 }
             )
         case ("POST", "http://iop.test/notify"):

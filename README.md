@@ -103,7 +103,7 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 `expose_metadata_resource` must be an object with `name` field. The object will be exposed at `/_famedly/login/{expose_metadata_resource.name}`.
 
-`jwt_validation` and `introspection_validation` contain a bunch of `*_path` optional fields. Each of these, if specified will be used to source either localpart, user id, fully qualified user id, or admin permission from jwt claims and introspection response. They values are going to be compared for equality, if they differ, authentication would fail. Be careful with these, as it is possible to configure in such a way that authentication would always fail, or, if `username_type` is `null`, no user id data can be sourced, thus also leading to failure.
+`jwt_validation` and `introspection_validation` contain a bunch of `*_path` optional fields. Each of these, if specified will be used to source either localpart, user id, fully qualified user id, admin permission, or email from jwt claims and introspection response. They values are going to be compared for equality, if they differ, authentication would fail. Be careful with these, as it is possible to configure in such a way that authentication would always fail, or, if `username_type` is `null`, no user id data can be sourced, thus also leading to failure.
 
 
 ### JwtValidationConfig
@@ -117,6 +117,7 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `fq_uid_path`      | [`Path`](#Path) (optional)                                |
 | `displayname_path` | [`Path`](#Path) (optional)                                |
 | `admin_path`       | [`Path`](#Path) (optional)                                |
+| `email_path`       | [`Path`](#Path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 | `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
 | `jwk_file`         | String (optional)                                         |
@@ -137,6 +138,7 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 | `fq_uid_path`      | [`Path`](#Path) (optional)                                |
 | `displayname_path` | [`Path`](#Path) (optional)                                |
 | `admin_path`       | [`Path`](#Path) (optional)                                |
+| `email_path`       | [`Path`](#Path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 
 Keep in mind, that default validator will always pass. According to the [spec](https://datatracker.ietf.org/doc/html/rfc7662), you probably want at least

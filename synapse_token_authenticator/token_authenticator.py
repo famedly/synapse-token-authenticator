@@ -16,6 +16,7 @@ import base64
 import json
 import logging
 import re
+import time
 from collections.abc import Awaitable
 from typing import Callable, Optional
 from urllib.parse import urljoin
@@ -483,6 +484,48 @@ class TokenAuthenticator:
             logger.info(e)
             return None
 
+        try:
+            get_email_mb = if_not_none(lambda x: x.email_path)
+            email = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_from_set(jwt_claims)(get_email_mb(config.jwt_validation)),
+                    get_from_set(introspection_claims)(
+                        get_email_mb(config.introspection_validation)
+                    ),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
+            return None
+
+        try:
+            external_id = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_path_in_dict("sub", jwt_claims),
+                    get_path_in_dict("sub", introspection_claims),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
+            return None
+        if not external_id:
+            logger.info("Token is missing 'sub' claim")
+            return None
+
+        try:
+            auth_provider = all_list_elems_are_equal_return_the_elem(
+                [
+                    get_path_in_dict("iss", jwt_claims),
+                    get_path_in_dict("iss", introspection_claims),
+                ]
+            )
+        except Exception as e:
+            logger.info(e)
+            return None
+        if not auth_provider:
+            logger.info("Token is missing 'iss' claim")
+            return None
+
         user_exists = await self.api.check_user_exists(fully_qualified_uid)
 
         if not user_exists and config.registration_enabled:
@@ -505,7 +548,23 @@ class TokenAuthenticator:
                     if config.notify_on_registration.interrupt_on_error:
                         return None
 
-            await self.api.register_user(localpart, admin=bool(admin))
+            user_id = await self.api.register_user(localpart, admin=bool(admin))
+
+            if email:
+                curr_time = round(time.time() * 1000)
+                await self.api._store.user_add_threepid(
+                    user_id,
+                    medium="email",
+                    address=email,
+                    validated_at=curr_time,
+                    added_at=curr_time,
+                )
+
+            await self.api.record_user_external_id(
+                auth_provider_id=auth_provider,
+                remote_user_id=external_id,
+                registered_user_id=user_id,
+            )
 
             logger.info("Registered user %s (%s)", localpart, displayname)
 
