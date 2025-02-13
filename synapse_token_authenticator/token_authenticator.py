@@ -549,6 +549,9 @@ class TokenAuthenticator:
                         return None
 
             user_id = await self.api.register_user(localpart, admin=bool(admin))
+            logger.debug(
+                f"User '{localpart}' created as '{  'Admin' if bool(admin) else 'User'}'"
+            )
 
             if email:
                 curr_time = round(time.time() * 1000)
@@ -559,6 +562,7 @@ class TokenAuthenticator:
                     validated_at=curr_time,
                     added_at=curr_time,
                 )
+                logger.debug("Added the email for the user '{localpart}'")
 
             await self.api.record_user_external_id(
                 auth_provider_id=auth_provider,
