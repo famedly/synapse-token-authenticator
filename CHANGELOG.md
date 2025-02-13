@@ -2,11 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8.1] - 2025-02-11
+## [0.9.0] - 2025-02-24
 
-### Chores
+### Bug Fixes
 
-- Update CI publish workflow
+- Fix error when adding email to a new user
+- Oauth flow with new user and registration disabled bug
+
+### Documentation
+
+- Add docs for ePa flow
+
+### Features
+
+- Add more attributes to the synapse when a user is created
+- Add external id validation
+- Add new epa flow
+
+### Refactoring
+
+- Add a few more debug logs
 
 ## [0.8.0] - 2025-02-11
 
@@ -14,7 +29,7 @@ All notable changes to this project will be documented in this file.
 
 - Add option to oauth to make an user admin on their first login
 
-## [0.7.0] - 2025-02-10 (never published)
+## [0.7.0] - 2025-02-10
 
 ### Features
 

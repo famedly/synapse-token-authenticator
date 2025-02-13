@@ -28,9 +28,9 @@ dependencies = [
   "twisted",
   # We need to pin this because of https://github.com/element-hq/synapse/issues/17882
   # TODO: Remove this dependency when we can
-  "Twisted==24.7.0"
+  "Twisted==24.7.0",
 ]
-version = "0.8.1"
+version = "0.9.0"
 
 [project.urls]
 Documentation = "https://github.com/famedly/synapse-token-authenticator"
