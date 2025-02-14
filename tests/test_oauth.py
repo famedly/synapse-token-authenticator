@@ -266,7 +266,7 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch(
-        "synapse.storage.databases.main.RegistrationStore.user_add_threepid",
+        "synapse_token_authenticator.TokenAuthenticator._add_user_email",
         new_callable=mock.AsyncMock,
     )
     async def test_login_register_threepid(self, add_threepid_mock, *args):
@@ -277,10 +277,7 @@ class CustomFlowTests(ModuleApiTestCase):
 
         add_threepid_mock.assert_called_with(
             "@alice:example.test",
-            medium="email",
-            address="alice@test.example",
-            validated_at=mock.ANY,
-            added_at=mock.ANY,
+            "alice@test.example",
         )
         self.assertEqual(result[0], "@alice:example.test")
 
@@ -438,7 +435,7 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch(
-        "synapse.storage.databases.main.RegistrationStore.user_add_threepid",
+        "synapse_token_authenticator.TokenAuthenticator._add_user_email",
         new_callable=mock.AsyncMock,
     )
     async def test_login_introspection_threepid(self, add_threepid_mock, *args):
@@ -448,9 +445,6 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         add_threepid_mock.assert_called_with(
             "@alice:example.test",
-            medium="email",
-            address="alice@test.example",
-            validated_at=mock.ANY,
-            added_at=mock.ANY,
+            "alice@test.example",
         )
         self.assertEqual(result[0], "@alice:example.test")
