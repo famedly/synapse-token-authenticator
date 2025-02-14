@@ -16,7 +16,6 @@ import base64
 import json
 import logging
 import re
-import time
 from collections.abc import Awaitable
 from typing import Callable, Optional
 from urllib.parse import urljoin
@@ -29,6 +28,7 @@ from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
 from synapse.types import UserID
 from twisted.web import resource
+from twisted.internet import defer
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.utils import (
@@ -554,15 +554,8 @@ class TokenAuthenticator:
             )
 
             if email:
-                curr_time = round(time.time() * 1000)
-                await self.api._store.user_add_threepid(
-                    user_id,
-                    medium="email",
-                    address=email,
-                    validated_at=curr_time,
-                    added_at=curr_time,
-                )
-                logger.debug("Added the email for the user '{localpart}'")
+                await self._add_user_email(user_id, email)
+                logger.debug(f"Added the email for the user '{localpart}'")
 
             await self.api.record_user_external_id(
                 auth_provider_id=auth_provider,
@@ -587,3 +580,10 @@ class TokenAuthenticator:
     @staticmethod
     def parse_config(config: dict):
         return TokenAuthenticatorConfig(config)
+
+    def _add_user_email(self, user_id, email) -> defer.Deferred:
+        return defer.ensureDeferred(
+            self.api._auth_handler.add_threepid(
+                user_id, "email", email, self.api._hs.get_clock().time_msec()
+            )
+        )
