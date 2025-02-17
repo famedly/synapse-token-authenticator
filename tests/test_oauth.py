@@ -119,6 +119,11 @@ class CustomFlowTests(ModuleApiTestCase):
     }
 
     @synapsetest.override_config(config_for_jwt)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
     async def test_token_no_expiry_with_config(self, *args):
         token = get_jwt_token("aliceid", exp_in=-1, claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
@@ -126,7 +131,12 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    async def test_valid_login(self):
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
+    async def test_valid_login(self, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
@@ -170,6 +180,11 @@ class CustomFlowTests(ModuleApiTestCase):
     @synapsetest.override_config(config_for_jwt_jwks_url)
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
+    )
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
     )
     async def test_fetch_jwks(self, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
@@ -278,6 +293,51 @@ class CustomFlowTests(ModuleApiTestCase):
         add_threepid_mock.assert_called_with(
             "@alice:example.test",
             "alice@test.example",
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    @synapsetest.override_config(config_for_jwt)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[
+            ("some_auth_provider", "some_external_id"),
+            ("http://test.example", "aliceid"),
+        ],
+    )
+    async def test_login_check_external_id(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    @synapsetest.override_config(config_for_jwt)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[("some_auth_provider", "some_external_id")],
+    )
+    async def test_login_check_external_id_negative(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result, None)
+
+    config_for_external_id = deepcopy(config_for_jwt)
+    config_for_external_id["modules"][0]["config"]["oauth"]["check_external_id"] = False
+
+    @synapsetest.override_config(config_for_external_id)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[("some_auth_provider", "some_external_id")],
+    )
+    async def test_login_check_external_id_disabled(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 

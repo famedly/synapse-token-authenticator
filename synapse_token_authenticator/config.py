@@ -126,6 +126,7 @@ class TokenAuthenticatorConfig:
                 notify_on_registration: NotifyOnRegistration | None = None
                 expose_metadata_resource: Any = None
                 registration_enabled: bool = False
+                check_external_id: bool = True
 
                 def __post_init__(self):
                     if self.notify_on_registration:

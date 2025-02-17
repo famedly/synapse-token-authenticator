@@ -17,7 +17,7 @@ import json
 import logging
 import re
 from collections.abc import Awaitable
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import synapse
@@ -565,6 +565,17 @@ class TokenAuthenticator:
 
             logger.info("Registered user %s (%s)", localpart, displayname)
 
+        if config.check_external_id and user_exists:
+            external_ids = await self._get_external_id(fully_qualified_uid)
+            if (
+                len(external_ids) > 0
+                and (auth_provider, external_id) not in external_ids
+            ):
+                logger.debug(
+                    f"The external_id '{external_id}' and auth_provider '{auth_provider}' don't match any of the user's stored external ids"
+                )
+                return None
+
         if displayname:
             user_id = UserID.from_string(fully_qualified_uid)
             await self.api._hs.get_profile_handler().set_displayname(
@@ -586,4 +597,11 @@ class TokenAuthenticator:
             self.api._auth_handler.add_threepid(
                 user_id, "email", email, self.api._hs.get_clock().time_msec()
             )
+        )
+
+    def _get_external_id(
+        self, fully_qualified_uid: str
+    ) -> "defer.Deferred[List[Tuple[str, str]]]":
+        return defer.ensureDeferred(
+            self.api._store.get_external_ids_by_user(fully_qualified_uid)
         )
