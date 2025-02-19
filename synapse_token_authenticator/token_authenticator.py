@@ -89,6 +89,16 @@ class TokenAuthenticator:
                 self.check_oauth
             )
 
+        if (cfg := getattr(self.config, "epa", None)) is not None:
+            if cfg.expose_metadata_resource:
+                resource_name = cfg.expose_metadata_resource["name"]
+                self.api.register_web_resource(
+                    f"/_famedly/login/{resource_name}",
+                    MetadataResource(cfg.expose_metadata_resource),
+                )
+
+            auth_checkers[("com.famedly.login.token.epa", ("token",))] = self.check_epa
+
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
     class LoginMetadataResource(resource.Resource):
@@ -575,6 +585,117 @@ class TokenAuthenticator:
                     f"The external_id '{external_id}' and auth_provider '{auth_provider}' don't match any of the user's stored external ids"
                 )
                 return None
+
+        if displayname:
+            user_id = UserID.from_string(fully_qualified_uid)
+            await self.api._hs.get_profile_handler().set_displayname(
+                requester=synapse.types.create_requester(user_id),
+                target_user=user_id,
+                by_admin=True,
+                new_displayname=displayname,
+            )
+
+        logger.info("All done and valid, logging in!")
+        return (fully_qualified_uid, None)
+
+    async def check_epa(
+        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+    ) -> Optional[
+        tuple[
+            str,
+            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+        ]
+    ]:
+        config = self.config.epa
+        logger.info("Receiving auth request")
+        if login_type != "com.famedly.login.token.epa":
+            logger.info("Wrong login type")
+            return None
+        if "token" not in login_dict:
+            logger.info("Missing token")
+            return None
+        token = login_dict["token"]
+
+        if config.jwks_endpoint:
+            client = self.api._hs.get_proxied_http_client()
+            jwks_json = await client.get_raw(
+                config.jwks_endpoint,
+            )
+            config.jwk_set = JWKSet.from_json(jwks_json)
+
+        check_claims: dict = {
+            "iss": config.iss,
+            "exp": None,
+        }
+        try:
+            enc_token = jwt.JWT(key=config.enc_jwk, jwt=token, expected_type="JWE")
+            token = jwt.JWT(
+                jwt=enc_token.claims,
+                key=config.jwk_set,
+                check_claims=check_claims,
+            )
+        except ValueError as e:
+            logger.info("Unrecognized token %s", e)
+            return None
+        except JWException as e:
+            logger.info("Invalid token %s", e)
+            return None
+        except TypeError as e:
+            logger.info("Invalid token type %s", e)
+            return None
+
+        jwt_header = json_decode(token.header)
+        if "typ" not in jwt_header:
+            logger.info("Token missing 'typ' in the header")
+            return None
+        if jwt_header["typ"] not in ["at+jwt", "application/at+jwt"]:
+            logger.info(
+                "Token has the wrong 'typ' in the header. Only 'at+jwt' or 'application/at+jwt' are accepted"
+            )
+            return None
+        if "alg" not in jwt_header or jwt_header["alg"] == "none":
+            logger.info("Token can't be signed with algorithm 'none'")
+            return None
+
+        jwt_claims = json_decode(token.claims)
+        if "jti" not in jwt_claims:
+            logger.info("Missing 'jti' in claims")
+            return None
+        if "aud" not in jwt_claims:
+            logger.info("Token missing 'aud' claim")
+            return None
+        if config.resource_id != jwt_claims["aud"]:
+            logger.info(
+                f"Token has the wrong 'aud'. The expected value is '{config.resource_id}'"
+            )
+            return None
+
+        localpart = get_path_in_dict(config.localpart_path, jwt_claims)
+        displayname = get_path_in_dict(config.displayname_path, jwt_claims)
+
+        if not localpart:
+            logger.info("Missing localpart")
+            return None
+        if username != localpart:
+            logger.info("The username doesn't match the localpart")
+            return None
+
+        if not config.validator.validate(jwt_claims):
+            logger.info("Token claims validation failed")
+            return None
+
+        fully_qualified_uid = self.api.get_qualified_user_id(localpart)
+
+        user_exists = await self.api.check_user_exists(fully_qualified_uid)
+
+        if not user_exists and not config.registration_enabled:
+            logger.info("User doesn't exist and registration is disabled")
+            return None
+
+        if not user_exists:
+            logger.info("User doesn't exist, registering them...")
+            await self.api.register_user(localpart)
+            logger.info(f"User '{localpart}' registered")
 
         if displayname:
             user_id = UserID.from_string(fully_qualified_uid)
