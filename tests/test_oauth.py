@@ -191,7 +191,6 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        print(f"result:\n{result}")
         self.assertEqual(result[0], "@alice:example.test")
 
     config_for_jwt_admin_path = deepcopy(config_for_jwt)

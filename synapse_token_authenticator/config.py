@@ -155,6 +155,49 @@ class TokenAuthenticatorConfig:
 
             self.oauth = OAuthConfig(**config)
 
+        if epa := other.get("epa"):
+
+            @dataclass
+            class EPaConfig:
+                expose_metadata_resource: Any = None
+                registration_enabled: bool = False
+                enc_jwk: JWK | None = None
+                enc_jwk_file: str | None = None
+                jwk_set: JWKSet | JWK | None = None
+                jwk_file: str | None = None
+                jwks_endpoint: str | None = None
+                localpart_path: str | None = None
+                displayname_path: str | None = None
+                iss: str | None = None
+                resource_id: str | None = None
+
+                def __post_init__(self):
+                    if not self.iss:
+                        raise Exception("No iss")
+
+                    if not self.resource_id:
+                        raise Exception("No resource_id")
+
+                    if self.enc_jwk:
+                        self.enc_jwk = JWK(**self.enc_jwk)
+                    elif self.enc_jwk_file:
+                        with open(self.enc_jwk_file) as f:
+                            self.enc_jwk = JWK.from_pem(f.read())
+                    else:
+                        raise Exception("No encryption JWK")
+
+                    if self.jwk_set and ("keys" in self.jwk_set):
+                        self.jwk_set = JWKSet(**self.jwk_set)
+                    elif self.jwk_set:
+                        self.jwk_set = JWK(**self.jwk_set)
+                    elif self.jwk_file:
+                        with open(self.jwk_file) as f:
+                            self.jwk_set = JWK.from_pem(f.read())
+                    elif not self.jwks_endpoint:
+                        raise Exception("No JWK")
+
+            self.epa = EPaConfig(**epa)
+
 
 def verify_jwt_based_cfg(cfg):
     if cfg.secret is None and cfg.keyfile is None:
