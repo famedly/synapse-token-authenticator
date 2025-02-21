@@ -21,7 +21,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import parse_qs
 
-from jwcrypto import jwk, jwt
+from jwcrypto import jwk, jwt, jwe
 from synapse.server import HomeServer
 from synapse.util import Clock
 from twisted.internet.testing import MemoryReactor
@@ -129,15 +129,34 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                             "username_type": "user_id",
                             "registration_enabled": True,
                         },
+                        "epa": {
+                            "localpart_path": "sub",
+                            "displayname_path": "urn:telematik:claims:display_name",
+                            "jwk_set": get_jwk(),
+                            "enc_jwk": get_enc_jwk(),
+                            "registration_enabled": True,
+                            "iss": "http://test.example",
+                            "resource_id": "https://famedly.de",
+                            "validator": ["exist"],
+                        },
                     },
                 }
             ]
         return conf
 
 
-def get_jwk(secret="foxies", id="123456"):
+def get_jwk(secret="foxies", id="123456") -> jwk.JWK:
     return jwk.JWK(
         k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
+        kty="oct",
+        kid=id,
+    )
+
+
+def get_enc_jwk(secret="encrypt", id="654321") -> jwk.JWK:
+    return jwk.JWK(
+        # we need exactly 512 bits
+        k=base64.urlsafe_b64encode((secret * 10).encode("utf-8")[0:64]).decode("utf-8"),
         kty="oct",
         kid=id,
     )
@@ -151,7 +170,8 @@ def get_jwt_token(
     admin=None,
     claims=None,
     id="123456",
-):
+    extra_headers: dict = {},
+) -> str:
     key = get_jwk(secret, id)
     if claims is None:
         claims = {}
@@ -165,9 +185,37 @@ def get_jwt_token(
             claims["exp"] = int(time.time()) + 120
         else:
             claims["exp"] = int(time.time()) + exp_in
-    token = jwt.JWT(header={"alg": algorithm, "kid": id}, claims=claims)
+
+    token = jwt.JWT(
+        header={"alg": algorithm, "kid": id, **extra_headers}, claims=claims
+    )
     token.make_signed_token(key)
     return token.serialize()
+
+
+def get_jwe_token(
+    username,
+    exp_in=None,
+    secret="foxies",
+    algorithm="HS512",
+    admin=None,
+    claims=None,
+    id="123456",
+    extra_headers: dict = {"typ": "at+jwt"},
+):
+    token = get_jwt_token(
+        username, exp_in, secret, algorithm, admin, claims, id, extra_headers
+    )
+    enc_key = get_enc_jwk()
+    protected_header = {
+        "alg": "dir",
+        "enc": "A256CBC-HS512",
+        "typ": "JWE",
+        "kid": enc_key.key_id,
+    }
+    jwetoken = jwe.JWE(token, recipient=enc_key, protected=protected_header)
+
+    return jwetoken.serialize(True)
 
 
 def get_oidc_login(username):

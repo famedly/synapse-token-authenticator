@@ -118,6 +118,20 @@ class CustomFlowTests(ModuleApiTestCase):
         ]
     }
 
+    config_for_jwt_reg_disabled = deepcopy(config_for_jwt)
+    config_for_jwt_reg_disabled["modules"][0]["config"]["oauth"][
+        "registration_enabled"
+    ] = False
+
+    @synapsetest.override_config(config_for_jwt_reg_disabled)
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    async def test_valid_login_registration_disabled(self, *args):
+        token = get_jwt_token("alice", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.epa", {"token": token}
+        )
+        self.assertEqual(result, None)
+
     @synapsetest.override_config(config_for_jwt)
     @mock.patch(
         "synapse_token_authenticator.TokenAuthenticator._get_external_id",
@@ -191,7 +205,6 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        print(f"result:\n{result}")
         self.assertEqual(result[0], "@alice:example.test")
 
     config_for_jwt_admin_path = deepcopy(config_for_jwt)

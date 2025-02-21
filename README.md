@@ -69,6 +69,8 @@ oidc:
   allowed_client_ids: ['2897827328738@project_name']
   # Allow registration of new users, defaults to false (optional)
   allow_registration: false
+epa:
+  # see ePaConfig section
 oauth:
   # see OAuthConfig section
 ```
@@ -354,6 +356,30 @@ or
 ['list_any_of', ['equal', 3]]
 ```
 
+### ePaConfig
+
+| Parameter                  | Type                                                                         |
+|----------------------------|
+| `iss` | String                                |
+| `resource_id`   | String                                |
+| `registration_enabled`     | Bool (defaults to `false`)                                                   |
+| `expose_metadata_resource` | Any (optional)                                                               |
+| `validator`        | [`Validator`](#Validator) (defaults to [`Exist`](#Exist)) |
+| `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `jwk_file`         | String (optional)                                         |
+| `jwks_endpoint`    | String (optional)                                         |
+| `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `enc_jwk_file`         | String (optional)                                         |
+| `enc_jwk`          | [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `displayname_path` | [`Path`](#Path) (optional)                                |
+| `localpart_path`   | [`Path`](#Path) (optional)                                |
+
+Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `enc_jwk` or `enc_jwk_file` must be specified.
+
+`resource_id` is an id for the synapse token authenticator. The same id must be present on the claim `aud` of the received token.
+
+`iss` is the expected issuer of the token and this will be checked against the claim `iss` of the token.
+
 ## Usage
 
 ### JWT Authentication
@@ -376,7 +402,6 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
   "token": "<jwt here>"
 }
 ```
-
 ### OIDC Authentication
 
 First, the user needs to obtain an Access token and an ID token from the IDP:
@@ -395,6 +420,23 @@ Next, the client needs to use these tokens and construct a payload to the login 
     "user": "alice" // The user's localpart, extracted from the localpart in the ID token returned by the IDP
   },
   "token": "<opaque access here>" // The access token returned by the IDP
+}
+```
+
+### ePa Authentication
+
+First the user needs to obtain an access token from the idp. This token need to be signed and later encrypted ([JWE](https://datatracker.ietf.org/doc/html/rfc7516)).
+
+Next, the client needs to use these tokens and construct a payload to the login endpoint:
+
+```jsonc
+{
+  "type": "com.famedly.login.token.epa",
+  "identifier": {
+    "type": "m.id.user",
+    "user": "alice" // The user's localpart, extracted from the localpart in the ID token returned by the IDP
+  },
+  "token": "<jwe here>" // The access token returned by the IDP
 }
 ```
 
