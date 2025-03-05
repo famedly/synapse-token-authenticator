@@ -78,11 +78,11 @@ It is recommended to have `require_expiry` set to `true` (default). As for `allo
 
 ### OAuthConfig
 | Parameter                  | Type                                                                         |
-|----------------------------|------------------------------------------------------------------------------|
-| `jwt_validation`           | [`JwtValidationConfig`](#JwtValidationConfig) (optional)                     |
-| `introspection_validation` | [`IntrospectionValidationConfig`](#IntrospectionValidationConfig) (optional) |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `jwt_validation`           | [`JwtValidationConfig`](#jwtvalidationconfig) (optional)                     |
+| `introspection_validation` | [`IntrospectionValidationConfig`](#introspectionvalidationconfig) (optional) |
 | `username_type`            | One of `'fq_uid'`, `'localpart'`, `'user_id'` (optional)                     |
-| `notify_on_registration`   | [`NotifyOnRegistration`](#NotifyOnRegistration) (optional)                   |
+| `notify_on_registration`   | [`NotifyOnRegistration`](#notifyonregistration) (optional)                   |
 | `expose_metadata_resource` | Any (optional)                                                               |
 | `registration_enabled`     | Bool (defaults to `false`)                                                   |
 
@@ -110,16 +110,17 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 ### JwtValidationConfig
 [RFC 7519 - JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
+
 | Parameter          | Type                                                      |
 |--------------------|-----------------------------------------------------------|
-| `validator`        | [`Validator`](#Validator) (defaults to [`Exist`](#Exist)) |
+| `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist)) |
 | `require_expiry`   | Bool (defaults to `false`)                                |
-| `localpart_path`   | [`Path`](#Path) (optional)                                |
-| `user_id_path`     | [`Path`](#Path) (optional)                                |
-| `fq_uid_path`      | [`Path`](#Path) (optional)                                |
-| `displayname_path` | [`Path`](#Path) (optional)                                |
-| `admin_path`       | [`Path`](#Path) (optional)                                |
-| `email_path`       | [`Path`](#Path) (optional)                                |
+| `localpart_path`   | [`Path`](#path) (optional)                                |
+| `user_id_path`     | [`Path`](#path) (optional)                                |
+| `fq_uid_path`      | [`Path`](#path) (optional)                                |
+| `displayname_path` | [`Path`](#path) (optional)                                |
+| `admin_path`       | [`Path`](#path) (optional)                                |
+| `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 | `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
 | `jwk_file`         | String (optional)                                         |
@@ -127,20 +128,19 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 
-
 ### IntrospectionValidationConfig
 [RFC 7662 - OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
 | Parameter          | Type                                                      |
-|--------------------|-----------------------------------------------------------|
+| ------------------ | --------------------------------------------------------- |
 | `endpoint`         | String                                                    |
-| `validator`        | [`Validator`](#Validator) (defaults to [`Exist`](#Exist)) |
-| `auth`             | [`HttpAuth`](#HttpAuth) (optional)                        |
-| `localpart_path`   | [`Path`](#Path) (optional)                                |
-| `user_id_path`     | [`Path`](#Path) (optional)                                |
-| `fq_uid_path`      | [`Path`](#Path) (optional)                                |
-| `displayname_path` | [`Path`](#Path) (optional)                                |
-| `admin_path`       | [`Path`](#Path) (optional)                                |
-| `email_path`       | [`Path`](#Path) (optional)                                |
+| `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist)) |
+| `auth`             | [`HttpAuth`](#httpauth) (optional)                        |
+| `localpart_path`   | [`Path`](#path) (optional)                                |
+| `user_id_path`     | [`Path`](#path) (optional)                                |
+| `fq_uid_path`      | [`Path`](#path) (optional)                                |
+| `displayname_path` | [`Path`](#path) (optional)                                |
+| `admin_path`       | [`Path`](#path) (optional)                                |
+| `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 
 Keep in mind, that default validator will always pass. According to the [spec](https://datatracker.ietf.org/doc/html/rfc7662), you probably want at least
@@ -158,7 +158,7 @@ or
 
 ### NotifyOnRegistration:
 | Parameter            | Type                               |
-|----------------------|------------------------------------|
+| -------------------- | ---------------------------------- |
 | `url`                | String                             |
 | `auth`               | [`HttpAuth`](#HttpAuth) (optional) |
 | `interrupt_on_error` | Bool (defaults to `true`)          |
@@ -173,19 +173,19 @@ A path is either a string or a list of strings. A path is used to get a value in
 
 ### BasicAuth
 | Parameter  | Type   |
-|------------|--------|
+| ---------- | ------ |
 | `username` | String |
 | `password` | String |
 
 ### BearerAuth
 | Parameter | Type   |
-|-----------|--------|
+| --------- | ------ |
 | `token`   | String |
 
 ### HttpAuth
 Authentication options, always optional
 | Parameter | Type                    |
-|-----------|-------------------------|
+| --------- | ----------------------- |
 | `type`    | `'basic'` \| `'bearer'` |
 
 Possible options: [`BasicAuth`](#BasicAuth), [`BearerAuth`](#BearerAuth),
@@ -220,7 +220,7 @@ or
 Validator that inverses the result of the inner validator.
 
 | Parameter   | Type                      |
-|-------------|---------------------------|
+| ----------- | ------------------------- |
 | `validator` | [`Validator`](#Validator) |
 
 #### Examples
@@ -236,7 +236,7 @@ or
 Validator that checks for equality with the specified constant.
 
 | Parameter | Type  |
-|-----------|-------|
+| --------- | ----- |
 | `value`   | `Any` |
 
 #### Examples
@@ -252,7 +252,7 @@ or
 Validator that checks if a value is a string and matches the specified regex.
 
 | Parameter                                  | Type   | Description                 |
-|--------------------------------------------|--------|-----------------------------|
+| ------------------------------------------ | ------ | --------------------------- |
 | `regex`                                    | `str`  | Python regex syntax         |
 | `full_match` (optional, `true` by default) | `bool` | Full match or partial match |
 
@@ -270,7 +270,7 @@ Validator that checks if **any** of the inner validators pass.
 
 
 | Parameter    | Type                              |
-|--------------|-----------------------------------|
+| ------------ | --------------------------------- |
 | `validators` | List of [`Validator`](#Validator) |
 
 #### Examples
@@ -289,7 +289,7 @@ or
 Validator that checks if **all** of the inner validators pass.
 
 | Parameter    | Type                              |
-|--------------|-----------------------------------|
+| ------------ | --------------------------------- |
 | `validators` | List of [`Validator`](#Validator) |
 
 #### Examples
@@ -309,7 +309,7 @@ Validator that modifies the context for the inner validator, *going inside* a di
 If the validated object is not a dict, or doesn't have specified `path`, validation fails.
 
 | Parameter   | Type                                                                |
-|-------------|---------------------------------------------------------------------|
+| ----------- | ------------------------------------------------------------------- |
 | `path`      | [`Path`](#Path)                                                     |
 | `validator` | [`Validator`](#Validator) (optional, defaults to [`Exist`](#Exist)) |
 
@@ -322,7 +322,7 @@ If the validated object is not a dict, or doesn't have specified `path`, validat
 Validator that checks if the value is a list and **all** of its elements satisfy the specified validator.
 
 | Parameter   | Type                      |
-|-------------|---------------------------|
+| ----------- | ------------------------- |
 | `validator` | [`Validator`](#Validator) |
 
 #### Examples
@@ -341,7 +341,7 @@ or
 Validator that checks if the value is a list and if **any** of its elements satisfy the specified validator.
 
 | Parameter   | Type                      |
-|-------------|---------------------------|
+| ----------- | ------------------------- |
 | `validator` | [`Validator`](#Validator) |
 
 #### Examples
@@ -358,21 +358,20 @@ or
 
 ### ePaConfig
 
-| Parameter                  | Type                                                                         |
-|----------------------------|
-| `iss` | String                                |
-| `resource_id`   | String                                |
-| `registration_enabled`     | Bool (defaults to `false`)                                                   |
-| `expose_metadata_resource` | Any (optional)                                                               |
-| `validator`        | [`Validator`](#Validator) (defaults to [`Exist`](#Exist)) |
-| `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
-| `jwk_file`         | String (optional)                                         |
-| `jwks_endpoint`    | String (optional)                                         |
-| `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
-| `enc_jwk_file`         | String (optional)                                         |
-| `enc_jwk`          | [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
-| `displayname_path` | [`Path`](#Path) (optional)                                |
-| `localpart_path`   | [`Path`](#Path) (optional)                                |
+| Parameter                  | Type                                                                      |
+| -------------------------- | --------------------------------------------------------------------------|
+| `iss`                      | String                                                                    |
+| `resource_id`              | String                                                                    |
+| `registration_enabled`     | Bool (defaults to `false`)                                                |
+| `expose_metadata_resource` | Any (optional)                                                            |
+| `validator`                | [`Validator`](#validator) (defaults to [`Exist`](#exist))                 |
+| `jwk_set`                  | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `jwk_file`                 | String (optional)                                                         |
+| `jwks_endpoint`            | String (optional)                                                         |
+| `enc_jwk_file`             | String (optional)                                                         |
+| `enc_jwk`                  | [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `displayname_path`         | [`Path`](#path) (optional)                                                |
+| `localpart_path`           | [`Path`](#path) (optional)                                                |
 
 Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `enc_jwk` or `enc_jwk_file` must be specified.
 
