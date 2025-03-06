@@ -370,6 +370,7 @@ or
 | `jwks_endpoint`            | String (optional)                                                         |
 | `enc_jwk_file`             | String (optional)                                                         |
 | `enc_jwk`                  | [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `enc_jwks_endpoint`        | String (optional) (defaults to `/.well-known/jwks.json`)                  |
 | `displayname_path`         | [`Path`](#path) (optional)                                                |
 | `localpart_path`           | [`Path`](#path) (optional)                                                |
 
@@ -378,6 +379,8 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `
 `resource_id` is an id for the synapse token authenticator. The same id must be present on the claim `aud` of the received token.
 
 `iss` is the expected issuer of the token and this will be checked against the claim `iss` of the token.
+
+`enc_jwks_endpoint` is the endpoint where the synapse token authenticator will publish the public keys for encrypting the JWEs. The full path of the endpoint will be `https://<homeserver>/<enc_jwks_endpoint>`. This endpoint will contain only a [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) in json format and the JWKSet will have only one key in it.
 
 ## Usage
 

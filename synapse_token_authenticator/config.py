@@ -166,6 +166,7 @@ class TokenAuthenticatorConfig:
                 registration_enabled: bool = False
                 enc_jwk: JWK | None = None
                 enc_jwk_file: str | None = None
+                enc_jwks_endpoint: str = "/.well-known/jwks.json"
                 jwk_set: JWKSet | JWK | None = None
                 jwk_file: str | None = None
                 jwks_endpoint: str | None = None

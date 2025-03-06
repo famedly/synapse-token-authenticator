@@ -32,6 +32,7 @@ from tests.test_utils import FakeResponse as Response
 
 admins = {}
 logger = logging.getLogger(__name__)
+ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
 
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
@@ -153,13 +154,8 @@ def get_jwk(secret="foxies", id="123456") -> jwk.JWK:
     )
 
 
-def get_enc_jwk(secret="encrypt", id="654321") -> jwk.JWK:
-    return jwk.JWK(
-        # we need exactly 512 bits
-        k=base64.urlsafe_b64encode((secret * 10).encode("utf-8")[0:64]).decode("utf-8"),
-        kty="oct",
-        kid=id,
-    )
+def get_enc_jwk() -> jwk.JWK:
+    return ENC_JWK
 
 
 def get_jwt_token(
@@ -208,12 +204,12 @@ def get_jwe_token(
     )
     enc_key = get_enc_jwk()
     protected_header = {
-        "alg": "dir",
+        "alg": "RSA-OAEP-256",
         "enc": "A256CBC-HS512",
         "typ": "JWE",
         "kid": enc_key.key_id,
     }
-    jwetoken = jwe.JWE(token, recipient=enc_key, protected=protected_header)
+    jwetoken = jwe.JWE(token, recipient=enc_key.public(), protected=protected_header)
 
     return jwetoken.serialize(True)
 

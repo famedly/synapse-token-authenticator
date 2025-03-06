@@ -97,6 +97,13 @@ class TokenAuthenticator:
                     MetadataResource(cfg.expose_metadata_resource),
                 )
 
+            # Registers the encryption public keys
+            keys = JWKSet()
+            keys.add(self.config.epa.enc_jwk)
+            self.api.register_web_resource(
+                self.config.epa.enc_jwks_endpoint, self.PublicKeysResource(keys)
+            )
+
             auth_checkers[("com.famedly.login.token.epa", ("token",))] = self.check_epa
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
@@ -121,6 +128,15 @@ class TokenAuthenticator:
                     "project-id": self.project_id,
                 }
             ).encode("utf-8")
+
+    class PublicKeysResource(resource.Resource):
+        def __init__(self, keys: JWKSet):
+            self.keys = keys.export(private_keys=False).encode("utf-8")
+
+        def render_GET(self, request):
+            request.setHeader(b"content-type", b"application/json")
+            request.setHeader(b"access-control-allow-origin", b"*")
+            return self.keys
 
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
