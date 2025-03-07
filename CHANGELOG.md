@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2025-03-07
+
+### Documentation
+
+- Fix epa flow table in docs
+
+### Features
+
+- Add public key publish endpoint
+
 ## [0.9.0] - 2025-02-24
 
 ### Bug Fixes
