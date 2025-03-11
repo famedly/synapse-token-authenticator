@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2025-03-11
+
+### Features
+
+- Remove username check and add localpart lowercase
+
 ## [0.10.0] - 2025-03-07
 
 ### Documentation
