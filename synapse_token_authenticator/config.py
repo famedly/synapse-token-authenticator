@@ -172,6 +172,7 @@ class TokenAuthenticatorConfig:
                 jwks_endpoint: str | None = None
                 localpart_path: str | None = None
                 displayname_path: str | None = None
+                lowercase_localpart: bool = False
 
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):

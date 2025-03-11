@@ -373,6 +373,7 @@ or
 | `enc_jwks_endpoint`        | String (optional) (defaults to `/.well-known/jwks.json`)                  |
 | `displayname_path`         | [`Path`](#path) (optional)                                                |
 | `localpart_path`           | [`Path`](#path) (optional)                                                |
+| `lowercase_localpart`      | Bool (defaults to `false`)                                                |
 
 Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `enc_jwk` or `enc_jwk_file` must be specified.
 
@@ -381,6 +382,8 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `
 `iss` is the expected issuer of the token and this will be checked against the claim `iss` of the token.
 
 `enc_jwks_endpoint` is the endpoint where the synapse token authenticator will publish the public keys for encrypting the JWEs. The full path of the endpoint will be `https://<homeserver>/<enc_jwks_endpoint>`. This endpoint will contain only a [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) in json format and the JWKSet will have only one key in it.
+
+If `lowercase_localpart` is set to `true` the flow will transform all localparts to lowercase
 
 ## Usage
 
@@ -436,11 +439,13 @@ Next, the client needs to use these tokens and construct a payload to the login 
   "type": "com.famedly.login.token.epa",
   "identifier": {
     "type": "m.id.user",
-    "user": "alice" // The user's localpart, extracted from the localpart in the ID token returned by the IDP
+    "user": "NOT_USED" // The user field will be ignored by this flow
   },
   "token": "<jwe here>" // The access token returned by the IDP
 }
 ```
+
+For this flow the `user` field will be ignored.
 
 ## Testing
 

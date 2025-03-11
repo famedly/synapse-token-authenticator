@@ -73,19 +73,12 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result, None)
 
-    async def test_token_bad_localpart(self):
-        token = get_jwe_token("bobby", claims=get_default_claims())
-        result = await self.hs.mockmod.check_epa(
-            "alice", "com.famedly.login.token.epa", {"token": token}
-        )
-        self.assertEqual(result, None)
-
-    async def test_token_claims_username_mismatch(self):
+    async def test_username_ignored(self):
         token = get_jwe_token("alice", claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
-            "bobby", "com.famedly.login.token.epa", {"token": token}
+            "dont_match", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        self.assertEqual(result[0], "@alice:example.test")
 
     async def test_token_missing_typ(self):
         token = get_jwe_token("alice", claims=get_default_claims(), extra_headers={})
@@ -227,3 +220,23 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
         self.assertEqual(result, None)
+
+    config_for_epa_lowercase = deepcopy(config_for_epa)
+    config_for_epa_lowercase["modules"][0]["config"]["epa"][
+        "lowercase_localpart"
+    ] = True
+
+    @synapsetest.override_config(config_for_epa_lowercase)
+    async def test_localpart_lowercase(self):
+        token = get_jwe_token("AlIcE", claims=get_default_claims())
+        result = await self.hs.mockmod.check_epa(
+            "alice", "com.famedly.login.token.epa", {"token": token}
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    async def test_localpart_not_lowercase(self):
+        token = get_jwe_token("AlIcE", claims=get_default_claims())
+        result = await self.hs.mockmod.check_epa(
+            "alice", "com.famedly.login.token.epa", {"token": token}
+        )
+        self.assertEqual(result[0], "@AlIcE:example.test")

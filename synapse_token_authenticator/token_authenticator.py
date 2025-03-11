@@ -619,7 +619,7 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     async def check_epa(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+        self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
     ) -> Optional[
         tuple[
             str,
@@ -696,9 +696,9 @@ class TokenAuthenticator:
         if not localpart:
             logger.info("Missing localpart")
             return None
-        if username != localpart:
-            logger.info("The username doesn't match the localpart")
-            return None
+
+        if config.lowercase_localpart:
+            localpart = localpart.lower()
 
         if not config.validator.validate(jwt_claims):
             logger.info("Token claims validation failed")
