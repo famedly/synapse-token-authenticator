@@ -29,6 +29,7 @@ default_claims = {
     "roles": {
         "OrgAdmin": ["123456"],
         "Admin": ["123456"],
+        "MatrixAdmin": ["123456"],
     },
     "email": "alice@test.example",
 }
@@ -226,6 +227,33 @@ class CustomFlowTests(ModuleApiTestCase):
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_register_admin(self, register_user_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+
+        register_user_mock.assert_called_with("alice", admin=True)
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_jwt_admin_paths = deepcopy(config_for_jwt)
+    config_for_jwt_admin_paths["modules"][0]["config"]["oauth"]["jwt_validation"][
+        "admin_path"
+    ] = [["roles", "NotAdmin"], ["roles", "MatrixAdmin"]]
+    config_for_jwt_admin_paths["modules"][0]["config"]["oauth"][
+        "registration_enabled"
+    ] = True
+
+    @synapsetest.override_config(config_for_jwt_admin_paths)
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.get_raw", return_value=jwks.export()
+    )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("synapse.module_api.ModuleApi.register_user")
+    async def test_login_register_multiple_admin_paths(self, register_user_mock, *args):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
@@ -466,6 +494,31 @@ class CustomFlowTests(ModuleApiTestCase):
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_introspection_register_admin(self, register_user_mock, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        register_user_mock.assert_called_with("alice", admin=True)
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_introspection_admin_paths = deepcopy(config_for_introspection)
+    config_for_introspection_admin_paths["modules"][0]["config"]["oauth"][
+        "introspection_validation"
+    ]["admin_path"] = [["roles", "AnotherAdmin"], ["roles", "MatrixAdmin"]]
+
+    @synapsetest.override_config(config_for_introspection_admin_paths)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("synapse.module_api.ModuleApi.register_user")
+    async def test_login_introspection_register_multiple_admin_paths(
+        self, register_user_mock, *args
+    ):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}

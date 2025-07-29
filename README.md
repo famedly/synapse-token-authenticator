@@ -119,7 +119,7 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `user_id_path`     | [`Path`](#path) (optional)                                |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                |
 | `displayname_path` | [`Path`](#path) (optional)                                |
-| `admin_path`       | [`Path`](#path) (optional)                                |
+| `admin_path`       | [`PathList`](#pathlist) (optional)                        |
 | `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 | `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
@@ -139,7 +139,7 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 | `user_id_path`     | [`Path`](#path) (optional)                                |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                |
 | `displayname_path` | [`Path`](#path) (optional)                                |
-| `admin_path`       | [`Path`](#path) (optional)                                |
+| `admin_path`       | [`PathList`](#pathlist) (optional)                        |
 | `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 
@@ -165,6 +165,9 @@ or
 
 ### Path
 A path is either a string or a list of strings. A path is used to get a value inside a nested dictionary/object.
+
+### PathList
+A path is either a string, a list of strings or a list of a list of strings. A pathlist is used to get a value inside a nested dictionary/object. If it's a string or a list of string it will behave just like a Path. If it's a list of lists it will handle every list as a Path and return the value gotten by the first Path that gets a not `None` value. For example, given the PathList `[["a", "b"], ["c", "d"]]` and the dictionary `{"a":{"e": 1}, "c":{"d":2}}`, the PathList will get the value 2.
 
 #### Examples
 - `'foo'` is an existing path in `{'foo': 3}`, resulting in value `3`

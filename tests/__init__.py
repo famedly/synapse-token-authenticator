@@ -290,6 +290,7 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
                     "roles": {
                         "OrgAdmin": ["123456"],
                         "Admin": ["123456"],
+                        "MatrixAdmin": ["123456"],
                     },
                     "email": "alice@test.example",
                     "sub": "aliceid",

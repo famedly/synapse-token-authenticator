@@ -58,6 +58,7 @@ class TokenAuthenticatorConfig:
         if config := other.get("oauth"):
 
             Path: TypeAlias = Union[str, List[str]]
+            PathList: TypeAlias = Union[Path, List[List[str]]]
 
             @dataclass
             class JwtValidationConfig:
@@ -67,7 +68,7 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
-                admin_path: Path | None = None
+                admin_path: PathList | None = None
                 email_path: Path | None = None
                 required_scopes: str | List[str] | None = None
                 jwk_set: JWKSet | JWK | None = None
@@ -97,7 +98,7 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
-                admin_path: Path | None = None
+                admin_path: PathList | None = None
                 email_path: Path | None = None
                 required_scopes: str | List[str] | None = None
 

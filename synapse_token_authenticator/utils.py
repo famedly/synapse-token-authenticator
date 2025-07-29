@@ -51,15 +51,20 @@ def all_list_elems_are_equal_return_the_elem(list_):
     return val
 
 
-def get_path_in_dict(path: str | List[str], d: Any) -> Optional[Any]:
+def get_path_in_dict(path: str | List[str] | List[List[str]], d: Any) -> Optional[Any]:
     if isinstance(path, str):
         path = [path]
-    r = d
+    if len(path) == 0 or isinstance(path[0], str):
+        path = [path]
     for p in path:
-        if not isinstance(r, dict):
-            return None
-        r = r.get(p)
-    return r
+        r = d
+        for segment in p:
+            if not isinstance(r, dict):
+                return None
+            r = r.get(segment)
+        if r is not None:
+            return r
+    return None
 
 
 def validate_scopes(required_scopes: str | List[str], provided_scopes: str) -> bool:

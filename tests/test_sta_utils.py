@@ -17,6 +17,25 @@ def test_get_path_in_dict():
     assert get_path_in_dict(["foo", "loo"], {"foo": {"loo": {"boo": 3}}}) == {"boo": 3}
     assert get_path_in_dict([], {"foo": 3}) == {"foo": 3}
     assert get_path_in_dict(["foo", "loo"], {"foo": {"boo": 3}}) is None
+    assert get_path_in_dict([["foo", "loo"], ["foo", "boo"]], {"foo": {"boo": 3}}) == 3
+    assert (
+        get_path_in_dict(
+            [["foo", "loo"], ["foo", "boo"]], {"foo": {"boo": 3, "loo": 4}}
+        )
+        == 4
+    )
+    assert (
+        get_path_in_dict(
+            [["foo", "loo"], ["foo", "boo"]], {"foo": {"bar": 3, "lar": 4}}
+        )
+        is None
+    )
+    assert get_path_in_dict([["foo", "loo"]], {"foo": {"loo": 4}}) == 4
+    assert get_path_in_dict([[], ["foo", "boo"]], {"foo": {"boo": 3}}) == {
+        "foo": {"boo": 3}
+    }
+    assert get_path_in_dict([[], []], {"foo": {"loo": 3}}) == {"foo": {"loo": 3}}
+    assert get_path_in_dict([["foo", "loo"], []], {"foo": {"loo": 3}}) == 3
 
 
 def test_validate_scopes():
