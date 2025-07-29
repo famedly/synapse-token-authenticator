@@ -37,50 +37,48 @@ Validator: TypeAlias = Union[
 def parse_validator(d: dict) -> Validator:
     if isinstance(d, dict):
         type = d.pop("type")
-        match type:
-            case "exist":
-                return Exist(**d)
-            case "not":
-                return Not(**d)
-            case "equal":
-                return Equal(**d)
-            case "regex":
-                return MatchesRegex(**d)
-            case "any_of":
-                return AnyOf(**d)
-            case "all_of":
-                return AllOf(**d)
-            case "in":
-                return In(**d)
-            case "list_any_of":
-                return ListAnyOf(**d)
-            case "list_all_of":
-                return ListAllOf(**d)
-            case t:
-                raise Exception(f"Unknown validator type {t}")
+        if type == "exist":
+            return Exist(**d)
+        elif type == "not":
+            return Not(**d)
+        elif type == "equal":
+            return Equal(**d)
+        elif type == "regex":
+            return MatchesRegex(**d)
+        elif type == "any_of":
+            return AnyOf(**d)
+        elif type == "all_of":
+            return AllOf(**d)
+        elif type == "in":
+            return In(**d)
+        elif type == "list_any_of":
+            return ListAnyOf(**d)
+        elif type == "list_all_of":
+            return ListAllOf(**d)
+        else:
+            raise Exception(f"Unknown validator type {type}")
     elif isinstance(d, list):
         type = d.pop(0)
-        match type:
-            case "exist":
-                return Exist(*d)
-            case "not":
-                return Not(*d)
-            case "equal":
-                return Equal(*d)
-            case "regex":
-                return MatchesRegex(*d)
-            case "any_of":
-                return AnyOf(*d)
-            case "all_of":
-                return AllOf(*d)
-            case "in":
-                return In(*d)
-            case "list_any_of":
-                return ListAnyOf(*d)
-            case "list_all_of":
-                return ListAllOf(*d)
-            case t:
-                raise Exception(f"Unknown validator type {t}")
+        if type == "exist":
+            return Exist(*d)
+        elif type == "not":
+            return Not(*d)
+        elif type == "equal":
+            return Equal(*d)
+        elif type == "regex":
+            return MatchesRegex(*d)
+        elif type == "any_of":
+            return AnyOf(*d)
+        elif type == "all_of":
+            return AllOf(*d)
+        elif type == "in":
+            return In(*d)
+        elif type == "list_any_of":
+            return ListAnyOf(*d)
+        elif type == "list_all_of":
+            return ListAllOf(*d)
+        else:
+            raise Exception(f"Unknown validator type {type}")
     else:
         raise Exception("Validator parsing failed, expected list or dict")
 

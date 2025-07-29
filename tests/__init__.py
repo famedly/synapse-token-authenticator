@@ -272,48 +272,45 @@ def mock_idp_post(uri, data_raw, **kwargs):
 
 
 def mock_for_oauth(method, uri, data=None, **extrargs):
-    match (method, uri):
-        case ("POST", "http://idp.test/introspect"):
-            data = parse_qs(data.decode())
-            match data:
-                case {"token": _}:
-                    pass
-                case _:
-                    logger.error(f"Bad introspect request: {data}")
-                    return Response(code=400)
-            return Response.json(
-                payload={
-                    "active": True,
-                    "localpart": "alice",
-                    "scope": "bar foo",
-                    "name": "Alice",
-                    "roles": {
-                        "OrgAdmin": ["123456"],
-                        "Admin": ["123456"],
-                        "MatrixAdmin": ["123456"],
-                    },
-                    "email": "alice@test.example",
-                    "sub": "aliceid",
-                    "iss": "http://test.example",
-                }
-            )
-        case ("POST", "http://iop.test/notify"):
-            data = json.loads(data)
-            match data:
-                case {
-                    "localpart": _,
-                    "fully_qualified_uid": _,
-                    "displayname": _,
-                }:
-                    assert data == {
-                        "localpart": "alice",
-                        "fully_qualified_uid": "@alice:example.test",
-                        "displayname": "Alice",
-                    }
-                case _:
-                    logger.error(f"Bad notify request: {data}")
-                    return Response(code=400)
-            return Response.json(payload=None)
-        case (m, u):
-            logger.error(f"Unknown request {m} {u}")
-            return Response(code=404)
+    if (method, uri) == ("POST", "http://idp.test/introspect"):
+        data = parse_qs(data.decode())
+        if "token" in data:
+            pass
+        else:
+            logger.error(f"Bad introspect request: {data}")
+            return Response(code=400)
+        return Response.json(
+            payload={
+                "active": True,
+                "localpart": "alice",
+                "scope": "bar foo",
+                "name": "Alice",
+                "roles": {
+                    "OrgAdmin": ["123456"],
+                    "Admin": ["123456"],
+                    "MatrixAdmin": ["123456"],
+                },
+                "email": "alice@test.example",
+                "sub": "aliceid",
+                "iss": "http://test.example",
+            }
+        )
+    elif (method, uri) == ("POST", "http://iop.test/notify"):
+        data = json.loads(data)
+        if (
+            "localpart" in data
+            and "fully_qualified_uid" in data
+            and "displayname" in data
+        ):
+            assert data == {
+                "localpart": "alice",
+                "fully_qualified_uid": "@alice:example.test",
+                "displayname": "Alice",
+            }
+        else:
+            logger.error(f"Bad notify request: {data}")
+            return Response(code=400)
+        return Response.json(payload=None)
+    else:
+        logger.error(f"Unknown request {method} {uri}")
+        return Response(code=404)
