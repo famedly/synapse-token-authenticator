@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2025-07-31
+
+### Features
+
+- Make admin_path take multiple paths
+
+### Miscellaneous Tasks
+
+- Add maintainers to codeowners file
+
+### Refactoring
+
+- Fix ruff warnings
+
 ## [0.11.0] - 2025-03-11
 
 ### Features
