@@ -601,6 +601,7 @@ class TokenAuthenticator:
                 len(external_ids) > 0
                 and (auth_provider, external_id) not in external_ids
             ):
+                logger.info("User didn't pass on the external id check")
                 logger.debug(
                     f"The external_id '{external_id}' and auth_provider '{auth_provider}' don't match any of the user's stored external ids"
                 )
