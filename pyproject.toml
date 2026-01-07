@@ -26,9 +26,7 @@ classifiers = [
 dependencies = [
   "jwcrypto",
   "twisted",
-  # We need to pin this because of https://github.com/element-hq/synapse/issues/17882
-  # TODO: Remove this dependency when we can
-  "Twisted==24.7.0",
+  "Twisted",
 ]
 version = "0.12.0"
 
