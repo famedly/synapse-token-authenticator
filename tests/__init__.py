@@ -14,16 +14,16 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import json
 import logging
 import time
-import json
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import parse_qs
 
-from jwcrypto import jwk, jwt, jwe
+from jwcrypto import jwe, jwk, jwt
 from synapse.server import HomeServer
-from synapse.util import Clock
+from synapse.util.clock import Clock
 from twisted.internet.testing import MemoryReactor
 from typing_extensions import override
 
