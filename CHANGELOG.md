@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2026-03-26
+
+### Features
+
+- feat: trigger CI actions (that are triggered on PRs) in merge queue (#76) (FrenchGithubUser)
+
+### Miscellaneous Tasks
+
+- chore: bump python version (FrenchGithubUser)
+- chore: the synapse team is now the maintainer of this project, update CODEOWNERS and remove obsolete file (FrenchGithubUser)
+- chore: twisted dependency doesn't need to be pinned anymore (FrenchGithubUser)
+- ci: remove unnecessary branches filter (#77) (FrenchGithubUser)
+- fix: update tests to work with breaking changes in recent synapse versions (FrenchGithubUser)
+
+### Refactoring
+
+- refactor: Add more logs (Matheus Zaniolo)
+
 ## [0.12.0] - 2025-07-31
 
 ### Features
