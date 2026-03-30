@@ -22,30 +22,30 @@ from urllib.parse import urljoin
 
 import synapse
 from jwcrypto import jwk, jwt
-from jwcrypto.jwk import JWKSet
 from jwcrypto.common import JWException, json_decode
+from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
 from synapse.types import UserID
-from twisted.web import resource
 from twisted.internet import defer
+from twisted.web import resource
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.utils import (
-    get_oidp_metadata,
-    basic_auth,
-    validate_scopes,
+    MetadataResource,
     all_list_elems_are_equal_return_the_elem,
+    basic_auth,
+    get_oidp_metadata,
     get_path_in_dict,
     if_not_none,
-    MetadataResource,
+    validate_scopes,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class TokenAuthenticator:
-    __version__ = "0.0.0"
+    __version__ = "0.13.0"
 
     def __init__(self, config: dict, account_handler: ModuleApi):
         self.api = account_handler
@@ -580,7 +580,7 @@ class TokenAuthenticator:
 
             user_id = await self.api.register_user(localpart, admin=bool(admin))
             logger.debug(
-                f"User '{localpart}' created as '{  'Admin' if bool(admin) else 'User'}'"
+                f"User '{localpart}' created as '{'Admin' if bool(admin) else 'User'}'"
             )
 
             if email:
