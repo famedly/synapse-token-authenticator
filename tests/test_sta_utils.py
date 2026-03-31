@@ -38,6 +38,62 @@ def test_get_path_in_dict():
     assert get_path_in_dict([["foo", "loo"], []], {"foo": {"loo": 3}}) == 3
 
 
+def test_get_path_in_dict_pathlist_fallback_on_missing_key():
+    """When the first path's key is entirely absent, later paths must still be tried."""
+    assert (
+        get_path_in_dict([["missing", "sub"], ["foo", "bar"]], {"foo": {"bar": 3}}) == 3
+    )
+    assert (
+        get_path_in_dict([["a", "b"], ["c", "d"], ["e", "f"]], {"e": {"f": 42}}) == 42
+    )
+    assert (
+        get_path_in_dict(
+            [["missing", "sub"], ["also_missing", "sub"]], {"foo": {"bar": 3}}
+        )
+        is None
+    )
+
+
+def test_get_path_in_dict_pathlist_non_dict_intermediate():
+    """When an intermediate value is a non-dict (e.g. int), later paths must still be tried."""
+    assert (
+        get_path_in_dict(
+            [["foo", "bar"], ["baz", "qux"]], {"foo": 42, "baz": {"qux": 7}}
+        )
+        == 7
+    )
+    assert (
+        get_path_in_dict(
+            [["a", "b", "c"], ["x", "y"]],
+            {"a": {"b": "not_a_dict"}, "x": {"y": 99}},
+        )
+        == 99
+    )
+
+
+def test_get_path_in_dict_zitadel_admin_path():
+    """Real-world scenario: Zitadel project-scoped role claims with PathList fallback."""
+    token = {
+        "urn:zitadel:iam:org:project:12345:roles": {
+            "MatrixAdmin": {"org_id": "famedly.localhost"}
+        },
+    }
+    assert get_path_in_dict(
+        [
+            ["roles", "Admin"],
+            ["urn:zitadel:iam:org:project:12345:roles", "MatrixAdmin"],
+        ],
+        token,
+    ) == {"org_id": "famedly.localhost"}
+    assert get_path_in_dict(
+        [
+            ["urn:zitadel:iam:org:project:12345:roles", "MatrixAdmin"],
+            ["roles", "Admin"],
+        ],
+        token,
+    ) == {"org_id": "famedly.localhost"}
+
+
 def test_validate_scopes():
     assert validate_scopes("foo boo", "boo foo")
     assert validate_scopes(["foo", "boo"], "boo foo")

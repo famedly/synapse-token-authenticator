@@ -60,10 +60,11 @@ def get_path_in_dict(path: str | List[str] | List[List[str]], d: Any) -> Optiona
         r = d
         for segment in p:
             if not isinstance(r, dict):
-                return None
+                break
             r = r.get(segment)
-        if r is not None:
-            return r
+        else:
+            if r is not None:
+                return r
     return None
 
 
