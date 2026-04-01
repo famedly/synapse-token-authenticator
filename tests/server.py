@@ -15,6 +15,7 @@
 # ruff: noqa: ARG001 ARG002
 
 import hashlib
+import inspect
 import ipaddress
 import logging
 import os
@@ -335,11 +336,17 @@ def setup_test_homeserver(
     global PREPPED_SQLITE_DB_CONN
     if PREPPED_SQLITE_DB_CONN is None:
         temp_engine = create_engine(database_config)
-        PREPPED_SQLITE_DB_CONN = LoggingDatabaseConnection(
-            conn=sqlite3.connect(":memory:"),
-            engine=temp_engine,
-            default_txn_name="PREPPED_CONN",
-        )
+        _prep_conn_kw: dict = {
+            "conn": sqlite3.connect(":memory:"),
+            "engine": temp_engine,
+            "default_txn_name": "PREPPED_CONN",
+        }
+        if (
+            "server_name"
+            in inspect.signature(LoggingDatabaseConnection.__init__).parameters
+        ):
+            _prep_conn_kw["server_name"] = "test"
+        PREPPED_SQLITE_DB_CONN = LoggingDatabaseConnection(**_prep_conn_kw)
 
         database = DatabaseConnectionConfig("master", database_config)
         config.database.databases = [database]

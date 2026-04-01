@@ -149,12 +149,16 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_sysadmin_registration_allowed_when_jwt_sub_and_iss_match(self, *args):
+    @mock.patch("synapse.module_api.ModuleApi.register_user")
+    async def test_sysadmin_registration_allowed_when_jwt_sub_and_iss_match(
+        self, register_user_mock, *args
+    ):
         """Registration is allowed when ``sysadmins`` matches JWT ``sub`` / ``iss``."""
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
+        register_user_mock.assert_called_with("alice", admin=True)
         self.assertEqual(result[0], "@alice:example.test")
 
     config_for_jwt_reg_disabled_sysadmin_wrong_sub = deepcopy(
@@ -251,8 +255,8 @@ class CustomFlowTests(ModuleApiTestCase):
 
     config_for_jwt_admin_path = deepcopy(config_for_jwt)
     config_for_jwt_admin_path["modules"][0]["config"]["oauth"]["jwt_validation"][
-        "admin_path"
-    ] = ["roles", "Admin"]
+        "admin_validator"
+    ] = {"type": "in", "path": ["roles", "Admin"]}
     config_for_jwt_admin_path["modules"][0]["config"]["oauth"][
         "registration_enabled"
     ] = True
@@ -278,8 +282,14 @@ class CustomFlowTests(ModuleApiTestCase):
 
     config_for_jwt_admin_paths = deepcopy(config_for_jwt)
     config_for_jwt_admin_paths["modules"][0]["config"]["oauth"]["jwt_validation"][
-        "admin_path"
-    ] = [["roles", "NotAdmin"], ["roles", "MatrixAdmin"]]
+        "admin_validator"
+    ] = {
+        "type": "any_of",
+        "validators": [
+            {"type": "in", "path": ["roles", "NotAdmin"]},
+            {"type": "in", "path": ["roles", "MatrixAdmin"]},
+        ],
+    }
     config_for_jwt_admin_paths["modules"][0]["config"]["oauth"][
         "registration_enabled"
     ] = True
@@ -305,8 +315,8 @@ class CustomFlowTests(ModuleApiTestCase):
 
     config_for_jwt_admin_path_wrong = deepcopy(config_for_jwt_admin_path)
     config_for_jwt_admin_path_wrong["modules"][0]["config"]["oauth"]["jwt_validation"][
-        "admin_path"
-    ] = ["roles", "SomethingAdmin"]
+        "admin_validator"
+    ] = {"type": "in", "path": ["roles", "SomethingAdmin"]}
 
     @synapsetest.override_config(config_for_jwt_admin_path_wrong)
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
@@ -467,14 +477,16 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
+    @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_sysadmin_registration_allowed_when_introspection_sub_and_iss_match(
-        self, *args
+        self, register_user_mock, *args
     ):
         """``sysadmins`` can match introspection ``sub`` / ``iss`` when JWT is not validated."""
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
+        register_user_mock.assert_called_with("alice", admin=True)
         self.assertEqual(result[0], "@alice:example.test")
 
     config_for_introspection_reg_disabled_sysadmin_wrong = deepcopy(
@@ -577,7 +589,7 @@ class CustomFlowTests(ModuleApiTestCase):
     config_for_introspection_admin_path = deepcopy(config_for_introspection)
     config_for_introspection_admin_path["modules"][0]["config"]["oauth"][
         "introspection_validation"
-    ]["admin_path"] = ["roles", "Admin"]
+    ]["admin_validator"] = {"type": "in", "path": ["roles", "Admin"]}
 
     @synapsetest.override_config(config_for_introspection_admin_path)
     @mock.patch(
@@ -600,7 +612,13 @@ class CustomFlowTests(ModuleApiTestCase):
     config_for_introspection_admin_paths = deepcopy(config_for_introspection)
     config_for_introspection_admin_paths["modules"][0]["config"]["oauth"][
         "introspection_validation"
-    ]["admin_path"] = [["roles", "AnotherAdmin"], ["roles", "MatrixAdmin"]]
+    ]["admin_validator"] = {
+        "type": "any_of",
+        "validators": [
+            {"type": "in", "path": ["roles", "AnotherAdmin"]},
+            {"type": "in", "path": ["roles", "MatrixAdmin"]},
+        ],
+    }
 
     @synapsetest.override_config(config_for_introspection_admin_paths)
     @mock.patch(

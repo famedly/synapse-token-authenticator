@@ -113,7 +113,7 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 `expose_metadata_resource` must be an object with `name` field. The object will be exposed at `/_famedly/login/{expose_metadata_resource.name}`.
 
-When `registration_enabled` is `false`, new users cannot register through this OAuth flow—except for identities listed under `sysadmins`. A `sysadmins` entry matches when both `external_id` and `issuer` equal the token's resolved `sub` and `iss`.
+When `registration_enabled` is `false`, new users cannot register through this OAuth flow—except for identities listed under `sysadmins`. A `sysadmins` entry matches when both `external_id` and `issuer` equal the token's resolved `sub` and `iss`. On **first registration**, a matching sysadmin is created as a Synapse server admin, in addition to any `admin_validator` outcome.
 
 Example:
 
@@ -131,7 +131,7 @@ oauth:
 
 ### OAuthSysadmin
 
-Each object in `oauth.sysadmins` identifies one IdP subject that may register even when `registration_enabled` is `false`.
+Each object in `oauth.sysadmins` identifies one IdP subject that may register even when `registration_enabled` is `false`, and who is registered as a server admin when first created via this flow.
 
 | Parameter     | Description |
 | ------------- | ----------- |
@@ -150,7 +150,7 @@ Each object in `oauth.sysadmins` identifies one IdP subject that may register ev
 | `user_id_path`     | [`Path`](#path) (optional)                                |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                |
 | `displayname_path` | [`Path`](#path) (optional)                                |
-| `admin_path`       | [`PathList`](#pathlist) (optional)                        |
+| `admin_validator`  | [`Validator`](#validator) (optional)                      |
 | `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 | `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
@@ -158,6 +158,8 @@ Each object in `oauth.sysadmins` identifies one IdP subject that may register ev
 | `jwks_endpoint`    | String (optional)                                         |
 
 Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
+
+If `admin_validator` is set, it is run against the decoded JWT claims when registering a new user. If it returns true, the user is created as a server admin.
 
 ### IntrospectionValidationConfig
 
@@ -172,9 +174,11 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 | `user_id_path`     | [`Path`](#path) (optional)                                |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                |
 | `displayname_path` | [`Path`](#path) (optional)                                |
-| `admin_path`       | [`PathList`](#pathlist) (optional)                        |
+| `admin_validator`  | [`Validator`](#validator) (optional)                      |
 | `email_path`       | [`Path`](#path) (optional)                                |
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
+
+If `admin_validator` is set, it is run against the introspection JSON when registering a new user; a true result creates the user as admin.
 
 Keep in mind, that default validator will always pass. According to the [spec](https://datatracker.ietf.org/doc/html/rfc7662), you probably want at least
 

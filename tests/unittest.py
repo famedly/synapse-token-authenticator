@@ -18,6 +18,7 @@
 
 import functools
 import gc
+import inspect
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -387,7 +388,10 @@ class HomeserverTestCase(TestCase):
         kwargs["name"] = config_obj.server.server_name
 
         async def run_bg_updates() -> None:
-            with LoggingContext(name="run_bg_updates"):
+            _log_ctx_kw: dict = {"name": "run_bg_updates"}
+            if "server_name" in inspect.signature(LoggingContext.__init__).parameters:
+                _log_ctx_kw["server_name"] = config_obj.server.server_name
+            with LoggingContext(**_log_ctx_kw):
                 self.get_success(stor.db_pool.updates.run_background_updates(False))
 
         hs = setup_test_homeserver(**kwargs)
