@@ -11,27 +11,28 @@ Synapse Token Authenticator is a synapse auth provider which allows for token au
 
 * [Installation](#installation)
 * [Configuration](#configuration)
-    * [OAuthConfig](#oauthconfig)
-    * [JwtValidationConfig](#jwtvalidationconfig)
-    * [IntrospectionValidationConfig](#introspectionvalidationconfig)
-    * [NotifyOnRegistration](#notifyonregistration)
-    * [Path](#path)
-    * [BasicAuth](#basicauth)
-    * [BearerAuth](#bearerauth)
-    * [HttpAuth](#httpauth)
-    * [Validator](#validator)
-    * [Exist](#exist)
-    * [Not](#not)
-    * [Equal](#equal)
-    * [MatchesRegex](#matchesregex)
-    * [AnyOf](#anyof)
-    * [AllOf](#allof)
-    * [In](#in)
-    * [ListAllOf](#listallof)
-    * [ListAnyOf](#listanyof)
+  * [OAuthConfig](#oauthconfig)
+  * [OAuthSysadmin](#oauthsysadmin)
+  * [JwtValidationConfig](#jwtvalidationconfig)
+  * [IntrospectionValidationConfig](#introspectionvalidationconfig)
+  * [NotifyOnRegistration](#notifyonregistration)
+  * [Path](#path)
+  * [BasicAuth](#basicauth)
+  * [BearerAuth](#bearerauth)
+  * [HttpAuth](#httpauth)
+  * [Validator](#validator)
+  * [Exist](#exist)
+  * [Not](#not)
+  * [Equal](#equal)
+  * [MatchesRegex](#matchesregex)
+  * [AnyOf](#anyof)
+  * [AllOf](#allof)
+  * [In](#in)
+  * [ListAllOf](#listallof)
+  * [ListAnyOf](#listanyof)
 * [Usage](#usage)
-    * [JWT Authentication](#jwt-authentication)
-    * [OIDC Authentication](#oidc-authentication)
+  * [JWT Authentication](#jwt-authentication)
+  * [OIDC Authentication](#oidc-authentication)
 * [Testing](#testing)
 * [Releasing](#releasing)
 * [License](#license)
@@ -43,7 +44,9 @@ pip install synapse-token-authenticator
 ```
 
 ## Configuration
+
 Here are the available configuration options:
+
 ```yaml
 jwt:
   # provide only one of secret, keyfile
@@ -74,9 +77,11 @@ epa:
 oauth:
   # see OAuthConfig section
 ```
+
 It is recommended to have `require_expiry` set to `true` (default). As for `allow_registration`, it depends on usecase: If you only want to be able to log in *existing* users, leave it at `false` (default). If nonexistant users should be simply registered upon hitting the login endpoint, set it to `true`.
 
 ### OAuthConfig
+
 | Parameter                  | Type                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------- |
 | `jwt_validation`           | [`JwtValidationConfig`](#jwtvalidationconfig) (optional)                     |
@@ -85,16 +90,19 @@ It is recommended to have `require_expiry` set to `true` (default). As for `allo
 | `notify_on_registration`   | [`NotifyOnRegistration`](#notifyonregistration) (optional)                   |
 | `expose_metadata_resource` | Any (optional)                                                               |
 | `registration_enabled`     | Bool (defaults to `false`)                                                   |
+| `sysadmins`                | List of [`OAuthSysadmin`](#oauthsysadmin) (optional)                         |
 
 At least one of `jwt_validation` or `introspection_validation` must be defined.
 
 `username_type` specifies the role of `identifier.user`:
-- `'fq_uid'` — must be fully qualified username, e.g. `@alice:example.test`
-- `'localpart'` — must be localpart, e.g. `alice`
-- `'user_id'` — could be localpart or fully qualified username
-- `null` — the username is ignored, it will be source from the token or introspection response
+
+* `'fq_uid'` — must be fully qualified username, e.g. `@alice:example.test`
+* `'localpart'` — must be localpart, e.g. `alice`
+* `'user_id'` — could be localpart or fully qualified username
+* `null` — the username is ignored, it will be source from the token or introspection response
 
 If `notify_on_registration` is set then `notify_on_registration.url` will be called when a new user is registered with this body:
+
 ```json
 {
     "localpart": "alice",
@@ -105,10 +113,33 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 `expose_metadata_resource` must be an object with `name` field. The object will be exposed at `/_famedly/login/{expose_metadata_resource.name}`.
 
+When `registration_enabled` is `false`, new users cannot register through this OAuth flow—except for identities listed under `sysadmins`. A `sysadmins` entry matches when both `external_id` and `issuer` equal the token's resolved `sub` and `iss`.
+
+Example:
+
+```yaml
+oauth:
+  registration_enabled: false
+  sysadmins:
+    - external_id: "366575164390899726"
+      issuer: "https://zitadel.example.com"
+  jwt_validation:
+    # ...
+```
+
 `jwt_validation` and `introspection_validation` contain a bunch of `*_path` optional fields. Each of these, if specified will be used to source either localpart, user id, fully qualified user id, admin permission, or email from jwt claims and introspection response. They values are going to be compared for equality, if they differ, authentication would fail. Be careful with these, as it is possible to configure in such a way that authentication would always fail, or, if `username_type` is `null`, no user id data can be sourced, thus also leading to failure.
 
+### OAuthSysadmin
+
+Each object in `oauth.sysadmins` identifies one IdP subject that may register even when `registration_enabled` is `false`.
+
+| Parameter     | Description |
+| ------------- | ----------- |
+| `external_id` | Must match the resolved `sub` claim. |
+| `issuer`      | Must match the resolved `iss` claim. |
 
 ### JwtValidationConfig
+
 [RFC 7519 - JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
 
 | Parameter          | Type                                                      |
@@ -129,7 +160,9 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 
 ### IntrospectionValidationConfig
+
 [RFC 7662 - OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
+
 | Parameter          | Type                                                      |
 | ------------------ | --------------------------------------------------------- |
 | `endpoint`         | String                                                    |
@@ -144,6 +177,7 @@ Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
 | `required_scopes`  | Space separated string or a list of strings (optional)    |
 
 Keep in mind, that default validator will always pass. According to the [spec](https://datatracker.ietf.org/doc/html/rfc7662), you probably want at least
+
 ```yaml
 type: in
 path: 'active'
@@ -151,91 +185,112 @@ validator:
   type: equal
   value: true
 ```
+
 or
+
 ```yaml
 ['in', 'active', ['equal', true]]
 ```
 
-### NotifyOnRegistration:
+### NotifyOnRegistration
+
 | Parameter            | Type                               |
 | -------------------- | ---------------------------------- |
 | `url`                | String                             |
-| `auth`               | [`HttpAuth`](#HttpAuth) (optional) |
+| `auth`               | [`HttpAuth`](#httpauth) (optional) |
 | `interrupt_on_error` | Bool (defaults to `true`)          |
 
 ### Path
+
 A path is either a string or a list of strings. A path is used to get a value inside a nested dictionary/object.
 
 ### PathList
+
 A path is either a string, a list of strings or a list of a list of strings. A pathlist is used to get a value inside a nested dictionary/object. If it's a string or a list of string it will behave just like a Path. If it's a list of lists it will handle every list as a Path and return the value gotten by the first Path that gets a not `None` value. For example, given the PathList `[["a", "b"], ["c", "d"]]` and the dictionary `{"a":{"e": 1}, "c":{"d":2}}`, the PathList will get the value 2.
 
 #### Examples
-- `'foo'` is an existing path in `{'foo': 3}`, resulting in value `3`
-- `['foo']` is an existing path in `{'foo': 3}`, resulting in value `3`
-- `['foo', 'bar']` is an existing path in `{'foo': {'bar': 3}}`, resulting in value `3`
+
+* `'foo'` is an existing path in `{'foo': 3}`, resulting in value `3`
+
+* `['foo']` is an existing path in `{'foo': 3}`, resulting in value `3`
+* `['foo', 'bar']` is an existing path in `{'foo': {'bar': 3}}`, resulting in value `3`
 
 ### BasicAuth
+
 | Parameter  | Type   |
 | ---------- | ------ |
 | `username` | String |
 | `password` | String |
 
 ### BearerAuth
+
 | Parameter | Type   |
 | --------- | ------ |
 | `token`   | String |
 
 ### HttpAuth
+
 Authentication options, always optional
+
 | Parameter | Type                    |
 | --------- | ----------------------- |
 | `type`    | `'basic'` \| `'bearer'` |
 
-Possible options: [`BasicAuth`](#BasicAuth), [`BearerAuth`](#BearerAuth),
+Possible options: [`BasicAuth`](#basicauth), [`BearerAuth`](#bearerauth),
 
 ### Validator
+
 A validator is any of these types:
-    [`Exist`](#Exist),
-    [`Not`](#Not),
-    [`Equal`](#Equal),
-    [`MatchesRegex`](#MatchesRegex),
-    [`AnyOf`](#AnyOf),
-    [`AllOf`](#AllOf),
-    [`In`](#In),
-    [`ListAnyOf`](#ListAnyOf),
-    [`ListAllOf`](#ListAllOf)
+    [`Exist`](#exist),
+    [`Not`](#not),
+    [`Equal`](#equal),
+    [`MatchesRegex`](#matchesregex),
+    [`AnyOf`](#anyof),
+    [`AllOf`](#allof),
+    [`In`](#in),
+    [`ListAnyOf`](#listanyof),
+    [`ListAllOf`](#listallof)
 
 Each validator has `type` field
 
 ### Exist
+
 Validator that always returns true.
 
 #### Examples
+
 ```yaml
 {'type': 'exist'}
 ```
+
 or
+
 ```yaml
 ['exist']
 ```
 
 ### Not
+
 Validator that inverses the result of the inner validator.
 
 | Parameter   | Type                      |
 | ----------- | ------------------------- |
-| `validator` | [`Validator`](#Validator) |
+| `validator` | [`Validator`](#validator) |
 
 #### Examples
+
 ```yaml
 {'type': 'not', 'validator': 'exist'}
 ```
+
 or
+
 ```yaml
 ['not', 'exist']
 ```
 
 ### Equal
+
 Validator that checks for equality with the specified constant.
 
 | Parameter | Type  |
@@ -243,15 +298,19 @@ Validator that checks for equality with the specified constant.
 | `value`   | `Any` |
 
 #### Examples
+
 ```yaml
 {'type': 'equal', 'value': 3}
 ```
+
 or
+
 ```yaml
 ['equal', 3]
 ```
 
 ### MatchesRegex
+
 Validator that checks if a value is a string and matches the specified regex.
 
 | Parameter                                  | Type   | Description                 |
@@ -260,101 +319,121 @@ Validator that checks if a value is a string and matches the specified regex.
 | `full_match` (optional, `true` by default) | `bool` | Full match or partial match |
 
 #### Examples
+
 ```yaml
 {'type': 'regex', 'regex': 'hello.'}
 ```
+
 or
+
 ```yaml
 ['regex', 'hello.', false]
 ```
 
 ### AnyOf
-Validator that checks if **any** of the inner validators pass.
 
+Validator that checks if **any** of the inner validators pass.
 
 | Parameter    | Type                              |
 | ------------ | --------------------------------- |
-| `validators` | List of [`Validator`](#Validator) |
+| `validators` | List of [`Validator`](#validator) |
 
 #### Examples
+
 ```yaml
 type: any_of
 validators:
   - ['in', 'foo', ['equal', 3]]
   - ['in', 'bar' ['exist']]
 ```
+
 or
+
 ```yaml
 ['any_of', [['in', 'bar' ['exist']], ['in', 'foo', ['equal', 3]]]]
 ```
 
 ### AllOf
+
 Validator that checks if **all** of the inner validators pass.
 
 | Parameter    | Type                              |
 | ------------ | --------------------------------- |
-| `validators` | List of [`Validator`](#Validator) |
+| `validators` | List of [`Validator`](#validator) |
 
 #### Examples
+
 ```yaml
 type: all_of
 validators:
   - ['exist']
   - ['in', 'foo', ['equal', 3]]
 ```
+
 or
+
 ```yaml
 ['all_of', [['exist'], ['in', 'foo', ['equal', 3]]]]
 ```
 
 ### In
+
 Validator that modifies the context for the inner validator, *going inside* a dict key.
 If the validated object is not a dict, or doesn't have specified `path`, validation fails.
 
 | Parameter   | Type                                                                |
 | ----------- | ------------------------------------------------------------------- |
-| `path`      | [`Path`](#Path)                                                     |
-| `validator` | [`Validator`](#Validator) (optional, defaults to [`Exist`](#Exist)) |
+| `path`      | [`Path`](#path)                                                     |
+| `validator` | [`Validator`](#validator) (optional, defaults to [`Exist`](#exist)) |
 
 #### Examples
+
 ```yaml
 ['in', ['foo', 'bar'], ['equal', 3]]
 ```
 
 ### ListAllOf
+
 Validator that checks if the value is a list and **all** of its elements satisfy the specified validator.
 
 | Parameter   | Type                      |
 | ----------- | ------------------------- |
-| `validator` | [`Validator`](#Validator) |
+| `validator` | [`Validator`](#validator) |
 
 #### Examples
+
 ```yaml
 type: list_all_of
 validator:
   type: regex
   regex: 'ab..'
 ```
+
 or
+
 ```yaml
 ['list_all_of', ['regex', 'ab..']]
 ```
 
 ### ListAnyOf
+
 Validator that checks if the value is a list and if **any** of its elements satisfy the specified validator.
 
 | Parameter   | Type                      |
 | ----------- | ------------------------- |
-| `validator` | [`Validator`](#Validator) |
+| `validator` | [`Validator`](#validator) |
 
 #### Examples
+
 ```yaml
 type: list_all_of
 validator:
   type: equal
   value: 3
 ```
+
 or
+
 ```yaml
 ['list_any_of', ['equal', 3]]
 ```
@@ -391,7 +470,9 @@ If `lowercase_localpart` is set to `true` the flow will transform all localparts
 ## Usage
 
 ### JWT Authentication
+
 First you have to generate a JWT with the correct claims. The `sub` claim is the localpart or full mxid of the user you want to log in as. Be sure that the algorithm and secret match those of the configuration. An example of the claims is as follows:
+
 ```json
 {
   "sub": "alice",
@@ -400,6 +481,7 @@ First you have to generate a JWT with the correct claims. The `sub` claim is the
 ```
 
 Next you need to post this token to the `/login` endpoint of synapse. Be sure that the `type` is `com.famedly.login.token` and that `identifier.user` is, again, either the localpart or the full mxid. For example the post body could look as following:
+
 ```json
 {
   "type": "com.famedly.login.token",
@@ -410,9 +492,11 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
   "token": "<jwt here>"
 }
 ```
+
 ### OIDC Authentication
 
 First, the user needs to obtain an Access token and an ID token from the IDP:
+
 ```http
 POST https://idp.example.org/oauth/v2/token
 

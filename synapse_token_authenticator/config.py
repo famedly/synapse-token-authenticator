@@ -120,6 +120,11 @@ class TokenAuthenticatorConfig:
                         self.auth = parse_auth(self.auth)
 
             @dataclass
+            class OAuthSysadminConfig:
+                external_id: str
+                issuer: str
+
+            @dataclass
             class OAuthConfig:
                 jwt_validation: JwtValidationConfig | None = None
                 introspection_validation: IntrospectionValidationConfig | None = None
@@ -128,8 +133,16 @@ class TokenAuthenticatorConfig:
                 expose_metadata_resource: Any = None
                 registration_enabled: bool = False
                 check_external_id: bool = True
+                sysadmins: List[OAuthSysadminConfig] | None = None
 
                 def __post_init__(self):
+                    if self.sysadmins:
+                        self.sysadmins = [
+                            OAuthSysadminConfig(**entry)
+                            if isinstance(entry, dict)
+                            else entry
+                            for entry in self.sysadmins
+                        ]
                     if self.notify_on_registration:
                         self.notify_on_registration = NotifyOnRegistration(
                             **self.notify_on_registration

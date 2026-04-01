@@ -129,7 +129,48 @@ class CustomFlowTests(ModuleApiTestCase):
     async def test_valid_login_registration_disabled(self, *args):
         token = get_jwt_token("alice", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
-            "alice", "com.famedly.login.token.epa", {"token": token}
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result, None)
+
+    config_for_jwt_reg_disabled_sysadmin = deepcopy(config_for_jwt_reg_disabled)
+    config_for_jwt_reg_disabled_sysadmin["modules"][0]["config"]["oauth"][
+        "sysadmins"
+    ] = [
+        {"external_id": "aliceid", "issuer": "http://test.example"},
+    ]
+
+    @synapsetest.override_config(config_for_jwt_reg_disabled_sysadmin)
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.post_json_get_json", return_value={}
+    )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_sysadmin_registration_allowed_when_jwt_sub_and_iss_match(self, *args):
+        """Registration is allowed when ``sysadmins`` matches JWT ``sub`` / ``iss``."""
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_jwt_reg_disabled_sysadmin_wrong_sub = deepcopy(
+        config_for_jwt_reg_disabled_sysadmin
+    )
+    config_for_jwt_reg_disabled_sysadmin_wrong_sub["modules"][0]["config"]["oauth"][
+        "sysadmins"
+    ] = [{"external_id": "other-id", "issuer": "http://test.example"}]
+
+    @synapsetest.override_config(config_for_jwt_reg_disabled_sysadmin_wrong_sub)
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    async def test_non_sysadmin_blocked_when_registration_disabled(self, *args):
+        """JWT ``sub`` does not match any sysadmin ``external_id`` → no registration."""
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
@@ -403,6 +444,61 @@ class CustomFlowTests(ModuleApiTestCase):
             }
         ]
     }
+
+    config_for_introspection_reg_disabled_sysadmin = deepcopy(config_for_introspection)
+    config_for_introspection_reg_disabled_sysadmin["modules"][0]["config"]["oauth"][
+        "registration_enabled"
+    ] = False
+    config_for_introspection_reg_disabled_sysadmin["modules"][0]["config"]["oauth"][
+        "sysadmins"
+    ] = [
+        {"external_id": "aliceid", "issuer": "http://test.example"},
+    ]
+
+    @synapsetest.override_config(config_for_introspection_reg_disabled_sysadmin)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.post_json_get_json", return_value={}
+    )
+    @mock.patch(
+        "synapse.module_api.ModuleApi.record_user_external_id",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_sysadmin_registration_allowed_when_introspection_sub_and_iss_match(
+        self, *args
+    ):
+        """``sysadmins`` can match introspection ``sub`` / ``iss`` when JWT is not validated."""
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result[0], "@alice:example.test")
+
+    config_for_introspection_reg_disabled_sysadmin_wrong = deepcopy(
+        config_for_introspection_reg_disabled_sysadmin
+    )
+    config_for_introspection_reg_disabled_sysadmin_wrong["modules"][0]["config"][
+        "oauth"
+    ]["sysadmins"] = [
+        {"external_id": "not-aliceid", "issuer": "http://test.example"},
+    ]
+
+    @synapsetest.override_config(config_for_introspection_reg_disabled_sysadmin_wrong)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
+    async def test_sysadmin_blocked_introspection_sub_mismatch_when_registration_disabled(
+        self, *args
+    ):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        self.assertEqual(result, None)
 
     @synapsetest.override_config(config_for_introspection)
     @mock.patch(

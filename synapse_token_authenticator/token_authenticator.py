@@ -554,7 +554,16 @@ class TokenAuthenticator:
 
         user_exists = await self.api.check_user_exists(fully_qualified_uid)
 
-        if not user_exists and not config.registration_enabled:
+        registration_allowed = config.registration_enabled or (
+            config.sysadmins is not None
+            and any(
+                str(s.external_id) == str(external_id)
+                and str(s.issuer) == str(auth_provider)
+                for s in config.sysadmins
+            )
+        )
+
+        if not user_exists and not registration_allowed:
             logger.info("User doesn't exist and registration is disabled")
             return None
 

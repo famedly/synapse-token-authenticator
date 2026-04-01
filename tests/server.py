@@ -45,7 +45,7 @@ from synapse.storage.database import LoggingDatabaseConnection
 from synapse.storage.engines import create_engine
 from synapse.storage.prepare_database import prepare_database
 from synapse.types import ISynapseReactor
-from synapse.util.clock import Clock
+from tests.synapse_clock import Clock
 from twisted.internet import address, tcp, threads, udp
 from twisted.internet.defer import Deferred
 from twisted.internet.interfaces import (
@@ -275,7 +275,10 @@ def _make_test_homeserver_synchronous(server: HomeServer) -> None:
 
 def get_clock() -> tuple[ThreadedMemoryReactorClock, Clock]:
     clock = ThreadedMemoryReactorClock()
-    hs_clock = Clock(clock, "test")
+    try:
+        hs_clock = Clock(clock, "test")
+    except TypeError:
+        hs_clock = Clock(clock)
     return clock, hs_clock
 
 
@@ -336,7 +339,6 @@ def setup_test_homeserver(
             conn=sqlite3.connect(":memory:"),
             engine=temp_engine,
             default_txn_name="PREPPED_CONN",
-            server_name="test",
         )
 
         database = DatabaseConnectionConfig("master", database_config)
