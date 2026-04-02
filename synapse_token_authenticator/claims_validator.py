@@ -38,7 +38,7 @@ def parse_validator(d: dict) -> Validator:
     if isinstance(d, dict):
         type = d.pop("type")
         if type == "exist":
-            return Exist(**d)
+            return Exist()
         elif type == "not":
             return Not(**d)
         elif type == "equal":
@@ -60,7 +60,7 @@ def parse_validator(d: dict) -> Validator:
     elif isinstance(d, list):
         type = d.pop(0)
         if type == "exist":
-            return Exist(*d)
+            return Exist()
         elif type == "not":
             return Not(*d)
         elif type == "equal":
