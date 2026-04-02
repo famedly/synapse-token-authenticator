@@ -166,8 +166,10 @@ def get_jwt_token(
     admin=None,
     claims=None,
     id="123456",
-    extra_headers: dict = {},
+    extra_headers: dict | None = None,
 ) -> str:
+    if extra_headers is None:
+        extra_headers = {}
     key = get_jwk(secret, id)
     if claims is None:
         claims = {}
@@ -197,10 +199,14 @@ def get_jwe_token(
     admin=None,
     claims=None,
     id="123456",
-    extra_headers: dict = {"typ": "at+jwt"},
+    extra_headers: dict | None = None,
 ):
+    if isinstance(extra_headers, dict):
+        _extra_headers = extra_headers
+    else:
+        _extra_headers = {"typ": "at+jwt"}
     token = get_jwt_token(
-        username, exp_in, secret, algorithm, admin, claims, id, extra_headers
+        username, exp_in, secret, algorithm, admin, claims, id, _extra_headers
     )
     enc_key = get_enc_jwk()
     protected_header = {
