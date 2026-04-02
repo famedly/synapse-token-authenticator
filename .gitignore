@@ -5,3 +5,4 @@ _trial_temp
 venv
 dist
 .coverage
+.idea
