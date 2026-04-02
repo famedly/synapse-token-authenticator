@@ -57,3 +57,57 @@ omit = []
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+[tool.hatch.envs.hatch-static-analysis]
+dependencies = [
+  "black",
+  "isort",
+  "ruff",
+  "mypy",
+  "mypy-zope",
+  "pydantic",
+  "mypy-zope",
+  "types-PyYAML",
+  "types-bleach",
+  "types-cachetools",
+  "types-requests",
+  "types-pyOpenSSL"
+]
+
+[tool.hatch.envs.hatch-static-analysis.scripts]
+format-check = [
+  "isort . --check --diff",
+  "black . --check --diff"
+]
+format-fix = [
+  "isort .",
+  "black ."
+]
+lint-check = [
+  "mypy",
+  "ruff check"
+]
+lint-fix = [
+  "mypy",
+  "ruff check --fix"
+]
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+install_types = true
+plugins = [
+  "pydantic.mypy",
+  "mypy_zope:plugin"
+]
+files = ["synapse_token_authenticator", "tests"]
+
+[tool.isort]
+profile = "black"
+src_paths = ["synapse_token_authenticator", "tests"]
+
+[tool.black]
+target-version=["py313"]
