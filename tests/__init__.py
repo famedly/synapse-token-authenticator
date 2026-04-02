@@ -209,12 +209,13 @@ def get_jwe_token(
         username, exp_in, secret, algorithm, admin, claims, id, _extra_headers
     )
     enc_key = get_enc_jwk()
-    protected_header = {
+    _protected_header = {
         "alg": "RSA-OAEP-256",
         "enc": "A256CBC-HS512",
         "typ": "JWE",
         "kid": enc_key.key_id,
     }
+    protected_header = json.dumps(_protected_header)
     jwetoken = jwe.JWE(token, recipient=enc_key.public(), protected=protected_header)
 
     return jwetoken.serialize(True)
