@@ -1,6 +1,7 @@
 from base64 import b64encode
+from collections.abc import Callable, Iterable
 from urllib.parse import urljoin
-from typing import List, Optional, Any
+from typing import Any, TypeVar
 import json
 from twisted.web import resource
 
@@ -39,11 +40,14 @@ def bearer_auth(token: str) -> dict[bytes, list[bytes]]:
     return {b"Authorization": [b"Bearer " + token.encode("utf8")]}
 
 
-def if_not_none(f):
+def if_not_none(f: Callable[..., Any]):
     return lambda x: (f(x) if x is not None else None)
 
 
-def all_list_elems_are_equal_return_the_elem(list_):
+T = TypeVar("T")
+
+
+def all_list_elems_are_equal_return_the_elem(list_: Iterable[T]) -> T | None:
     filtered_list = list(filter(lambda x: x is not None, list_))
     if len(filtered_list) == 0:
         return None
@@ -69,7 +73,7 @@ def get_path_in_dict(path: PathList, d: Any) -> Optional[Any]:
     return None
 
 
-def validate_scopes(required_scopes: str | List[str], provided_scopes: str) -> bool:
+def validate_scopes(required_scopes: str | list[str], provided_scopes: str) -> bool:
     if isinstance(required_scopes, str):
         required_scopes = required_scopes.split()
     provided_scopes_list = provided_scopes.split()
