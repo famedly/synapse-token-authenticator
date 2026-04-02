@@ -4,6 +4,8 @@ from typing import List, Optional, Any
 import json
 from twisted.web import resource
 
+from synapse_token_authenticator.types import PathList
+
 
 class OpenIDProviderMetadata:
     """
@@ -51,7 +53,7 @@ def all_list_elems_are_equal_return_the_elem(list_):
     return val
 
 
-def get_path_in_dict(path: str | List[str] | List[List[str]], d: Any) -> Optional[Any]:
+def get_path_in_dict(path: PathList, d: Any) -> Optional[Any]:
     if isinstance(path, str):
         path = [path]
     if len(path) == 0 or isinstance(path[0], str):
