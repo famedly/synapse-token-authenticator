@@ -16,6 +16,8 @@ Current solution:
    more complicated, we better switch to another engine/DSL
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import List, Optional, Any, TypeAlias, Union
 from synapse_token_authenticator.utils import get_path_in_dict
@@ -32,55 +34,6 @@ Validator: TypeAlias = Union[
     "ListAnyOf",
     "ListAllOf",
 ]
-
-
-def parse_validator(d: dict) -> Validator:
-    if isinstance(d, dict):
-        type = d.pop("type")
-        if type == "exist":
-            return Exist()
-        elif type == "not":
-            return Not(**d)
-        elif type == "equal":
-            return Equal(**d)
-        elif type == "regex":
-            return MatchesRegex(**d)
-        elif type == "any_of":
-            return AnyOf(**d)
-        elif type == "all_of":
-            return AllOf(**d)
-        elif type == "in":
-            return In(**d)
-        elif type == "list_any_of":
-            return ListAnyOf(**d)
-        elif type == "list_all_of":
-            return ListAllOf(**d)
-        else:
-            raise Exception(f"Unknown validator type {type}")
-    elif isinstance(d, list):
-        type = d.pop(0)
-        if type == "exist":
-            return Exist()
-        elif type == "not":
-            return Not(*d)
-        elif type == "equal":
-            return Equal(*d)
-        elif type == "regex":
-            return MatchesRegex(*d)
-        elif type == "any_of":
-            return AnyOf(*d)
-        elif type == "all_of":
-            return AllOf(*d)
-        elif type == "in":
-            return In(*d)
-        elif type == "list_any_of":
-            return ListAnyOf(*d)
-        elif type == "list_all_of":
-            return ListAllOf(*d)
-        else:
-            raise Exception(f"Unknown validator type {type}")
-    else:
-        raise Exception("Validator parsing failed, expected list or dict")
 
 
 @dataclass
@@ -193,3 +146,32 @@ class ListAnyOf:
         if not isinstance(list_, list):
             return False
         return any(self.validator.validate(x) for x in list_)
+
+
+VALIDATOR_MAP: dict[str, type[Validator]] = {
+    "exist": Exist,
+    "not": Not,
+    "equal": Equal,
+    "regex": MatchesRegex,
+    "any_of": AnyOf,
+    "all_of": AllOf,
+    "in": In,
+    "list_any_of": ListAnyOf,
+    "list_all_of": ListAllOf,
+}
+
+
+def parse_validator(d: dict | list) -> Validator:
+    if isinstance(d, dict):
+        _type = d.pop("type")
+    elif isinstance(d, list):
+        _type = d.pop(0)
+    else:
+        raise Exception("Validator parsing failed, expected list or dict")
+
+    if _validator := VALIDATOR_MAP.get(_type):
+        if isinstance(d, dict):
+            # Exist is a special critter, doesn't need an initializer
+            return _validator(**d)
+        return _validator(*d)
+    raise Exception(f"Unknown validator type {_type}")
