@@ -16,8 +16,8 @@ import base64
 import json
 import logging
 import re
-from collections.abc import Awaitable
-from typing import Callable, List, Optional, Tuple
+from collections.abc import Awaitable, Coroutine
+from typing import Any, Callable, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import synapse
@@ -49,7 +49,15 @@ class TokenAuthenticator:
     def __init__(self, config: TokenAuthenticatorConfig, account_handler: ModuleApi):
         self.api = account_handler
 
-        auth_checkers = {}
+        auth_checkers: dict[
+            tuple[str, tuple[str]],
+            Callable[
+                [str, str, dict[str, Any]],
+                Coroutine[
+                    Any, Any, tuple[str, Callable[[Any], Awaitable[None]] | None] | None
+                ],
+            ],
+        ] = {}
 
         self.config = config
         if (jwt := getattr(self.config, "jwt", None)) is not None:
@@ -138,7 +146,7 @@ class TokenAuthenticator:
             return self.keys
 
     async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+        self, username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
@@ -230,7 +238,7 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oidc_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+        self, username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
@@ -319,7 +327,7 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oauth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+        self, username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
@@ -619,7 +627,7 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     async def check_epa(
-        self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
+        self, _username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
