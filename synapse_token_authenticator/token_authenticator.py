@@ -46,12 +46,12 @@ logger = logging.getLogger(__name__)
 class TokenAuthenticator:
     __version__ = "0.13.0"
 
-    def __init__(self, config: dict, account_handler: ModuleApi):
+    def __init__(self, config: TokenAuthenticatorConfig, account_handler: ModuleApi):
         self.api = account_handler
 
         auth_checkers = {}
 
-        self.config: TokenAuthenticatorConfig = config
+        self.config = config
         if (jwt := getattr(self.config, "jwt", None)) is not None:
             if jwt.secret:
                 k = {
