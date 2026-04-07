@@ -15,6 +15,7 @@
 """
 Utilities for running the unit tests
 """
+from __future__ import annotations
 import json
 import sys
 import warnings
@@ -30,6 +31,8 @@ from twisted.web.client import ResponseDone
 from twisted.web.http import RESPONSES
 from twisted.web.http_headers import Headers
 from twisted.web.iweb import IResponse
+from typing_extensions import Self
+
 
 if TYPE_CHECKING:
     from sys import UnraisableHookArgs
@@ -85,7 +88,7 @@ def setup_awaitable_errors() -> Callable[[], None]:
 # Type ignore: it does not fully implement IResponse, but is good enough for tests
 @zope.interface.implementer(IResponse)
 @attr.s(slots=True, frozen=True, auto_attribs=True)
-class FakeResponse:  # type: ignore[misc]
+class FakeResponse:
     """A fake twisted.web.IResponse object
 
     there is a similar class at treq.test.test_response, but it lacks a `phrase`
@@ -115,7 +118,7 @@ class FakeResponse:  # type: ignore[misc]
         protocol.connectionLost(Failure(ResponseDone()))
 
     @classmethod
-    def json(cls, *, code: int = 200, payload: JsonSerializable) -> "FakeResponse":
+    def json(cls, *, code: int = 200, payload: JsonSerializable) -> FakeResponse:
         headers = Headers({"Content-Type": ["application/json"]})
         body = json.dumps(payload).encode("utf-8")
         return cls(code=code, body=body, headers=headers)

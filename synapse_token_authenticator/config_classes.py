@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, List, Literal, TypeAlias, Union
 
 from jwcrypto.jwk import JWK, JWKSet
+from synapse.config import ConfigError
 
 from synapse_token_authenticator.claims_validator import (
     Exist,
@@ -13,7 +14,6 @@ from synapse_token_authenticator.types import (
     PathList,
 )
 from synapse_token_authenticator.utils import basic_auth, bearer_auth
-
 
 
 @dataclass
@@ -46,11 +46,10 @@ class JwtConfig:
     def __init__(self, other: dict):
         self.secret: str | None = other.get("secret")
         self.keyfile: str | None = other.get("keyfile")
-
+        if not self.secret and not self.keyfile:
+            raise ConfigError("Must have either secret or keyfile in JWT configuration")
         self.algorithm: str = other.get("algorithm", "HS512")
-        self.allow_registration: bool = other.get(
-            "allow_registration", False
-        )
+        self.allow_registration: bool = other.get("allow_registration", False)
         self.require_expiry: bool = other.get("require_expiry", True)
 
 
@@ -65,13 +64,9 @@ class OIDCConfig:
         except KeyError as error:
             raise Exception(f"Config option must be set: {error.args[0]}")
 
-        self.allowed_client_ids: str | None = other.get(
-            "allowed_client_ids"
-        )
+        self.allowed_client_ids: str | None = other.get("allowed_client_ids")
 
-        self.allow_registration: bool = other.get(
-            "allow_registration", False
-        )
+        self.allow_registration: bool = other.get("allow_registration", False)
 
 
 @dataclass
@@ -135,6 +130,7 @@ class NotifyOnRegistration:
         if not isinstance(self.auth, NoAuth):
             self.auth = parse_auth(self.auth)
 
+
 @dataclass
 class OAuthConfig:
     jwt_validation: JwtValidationConfig | None = None
@@ -151,9 +147,7 @@ class OAuthConfig:
                 **self.notify_on_registration
             )
         if self.jwt_validation:
-            self.jwt_validation = JwtValidationConfig(
-                **(self.jwt_validation)
-            )
+            self.jwt_validation = JwtValidationConfig(**(self.jwt_validation))
         if self.introspection_validation:
             self.introspection_validation = IntrospectionValidationConfig(
                 **self.introspection_validation
@@ -209,7 +203,6 @@ class EPaConfig:
                 self.jwk_set = JWK.from_pem(f.read())
         elif not self.jwks_endpoint:
             raise Exception("No JWK")
-
 
 
 def parse_auth(d: dict) -> HttpAuth:

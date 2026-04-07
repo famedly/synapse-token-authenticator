@@ -25,11 +25,14 @@ from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
 from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
+from synapse.config import ConfigError
 from synapse.module_api import ModuleApi
+from synapse.rest.client.login import LoginResponse
 from synapse.types import UserID
 from twisted.web import resource
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
+from synapse_token_authenticator.config_classes import OIDCConfig
 from synapse_token_authenticator.utils import (
     MetadataResource,
     all_list_elems_are_equal_return_the_elem,
@@ -60,52 +63,55 @@ class TokenAuthenticator:
         ] = {}
 
         self.config = config
-        if (jwt := getattr(self.config, "jwt", None)) is not None:
-            if jwt.secret:
+        if self.config.jwt:
+            if self.config.jwt.secret:
                 k = {
-                    "k": base64.urlsafe_b64encode(jwt.secret.encode("utf-8")).decode(
-                        "utf-8"
-                    ),
+                    "k": base64.urlsafe_b64encode(
+                        self.config.jwt.secret.encode("utf-8")
+                    ).decode("utf-8"),
                     "kty": "oct",
                 }
                 self.key = jwk.JWK(**k)
+            elif self.config.jwt.keyfile:
+                with open(self.config.jwt.keyfile) as f:
+                    self.key = jwk.JWK.from_pem(f.read().encode())
             else:
-                with open(jwt.keyfile) as f:
-                    self.key = jwk.JWK.from_pem(f.read())
+                raise Exception("Never reachable")
             auth_checkers[("com.famedly.login.token", ("token",))] = self.check_jwt_auth
 
-        if (oidc := getattr(self.config, "oidc", None)) is not None:
+        if self.config.oidc:
             auth_checkers[("com.famedly.login.token.oidc", ("token",))] = (
                 self.check_oidc_auth
             )
 
             self.api.register_web_resource(
                 "/_famedly/login/com.famedly.login.token.oidc",
-                self.LoginMetadataResource(oidc),
+                self.LoginMetadataResource(self.config.oidc),
             )
 
-        if (cfg := getattr(self.config, "oauth", None)) is not None:
-            if cfg.expose_metadata_resource:
-                resource_name = cfg.expose_metadata_resource["name"]
+        if self.config.oauth:
+            if self.config.oauth.expose_metadata_resource:
+                resource_name = self.config.oauth.expose_metadata_resource["name"]
                 self.api.register_web_resource(
                     f"/_famedly/login/{resource_name}",
-                    MetadataResource(cfg.expose_metadata_resource),
+                    MetadataResource(self.config.oauth.expose_metadata_resource),
                 )
 
             auth_checkers[("com.famedly.login.token.oauth", ("token",))] = (
                 self.check_oauth
             )
 
-        if (cfg := getattr(self.config, "epa", None)) is not None:
-            if cfg.expose_metadata_resource:
-                resource_name = cfg.expose_metadata_resource["name"]
+        if self.config.epa:
+            if self.config.epa.expose_metadata_resource:
+                resource_name = self.config.epa.expose_metadata_resource["name"]
                 self.api.register_web_resource(
                     f"/_famedly/login/{resource_name}",
-                    MetadataResource(cfg.expose_metadata_resource),
+                    MetadataResource(self.config.epa.expose_metadata_resource),
                 )
 
             # Registers the encryption public keys
             keys = JWKSet()
+            assert self.config.epa.enc_jwk is not None
             keys.add(self.config.epa.enc_jwk)
             self.api.register_web_resource(
                 self.config.epa.enc_jwks_endpoint, self.PublicKeysResource(keys)
@@ -116,7 +122,7 @@ class TokenAuthenticator:
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
     class LoginMetadataResource(resource.Resource):
-        def __init__(self, oidc_config: object):
+        def __init__(self, oidc_config: OIDCConfig):
             self.issuer = oidc_config.issuer
             self.metadata_url = urljoin(
                 oidc_config.issuer, "/.well-known/openid-configuration"
@@ -150,7 +156,7 @@ class TokenAuthenticator:
     ) -> Optional[
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Optional[Callable[[LoginResponse], Awaitable[None]]],
         ]
     ]:
         logger.info("Receiving auth request")
@@ -162,6 +168,9 @@ class TokenAuthenticator:
             return None
         token = login_dict["token"]
 
+        assert (
+            self.config.jwt is not None
+        ), "JWT was not configured, so this checker should not be reachable"
         check_claims: dict = {}
         if self.config.jwt.require_expiry:
             check_claims["exp"] = None
@@ -235,14 +244,14 @@ class TokenAuthenticator:
             )
 
         logger.info("All done and valid, logging in!")
-        return (user_id_str, None)
+        return user_id_str, None
 
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Optional[Callable[[LoginResponse], Awaitable[None]]],
         ]
     ]:
         logger.info("Receiving auth request")
@@ -255,6 +264,9 @@ class TokenAuthenticator:
         token = login_dict["token"]
 
         client = self.api._hs.get_proxied_http_client()
+        assert (
+            self.config.oidc is not None
+        ), "OIDC was not configured, this checker should not be reachable"
         oidc = self.config.oidc
         oidc_metadata = await get_oidp_metadata(oidc.issuer, client)
 
@@ -324,16 +336,19 @@ class TokenAuthenticator:
         user_id_str = self.api.get_qualified_user_id(username)
 
         logger.info("All done and valid, logging in!")
-        return (user_id_str, None)
+        return user_id_str, None
 
     async def check_oauth(
         self, username: str, login_type: str, login_dict: dict[str, Any]
     ) -> Optional[
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Optional[Callable[[LoginResponse], Awaitable[None]]],
         ]
     ]:
+        assert (
+            self.config.oauth is not None
+        ), "OAUTH is not configured, so this checker should not be reachable"
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -631,9 +646,12 @@ class TokenAuthenticator:
     ) -> Optional[
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Optional[Callable[[LoginResponse], Awaitable[None]]],
         ]
     ]:
+        assert (
+            self.config.epa is not None
+        ), "EPA Config was missing, so this checker should not be reachable"
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
@@ -672,7 +690,7 @@ class TokenAuthenticator:
             logger.info("Invalid token type %s", e)
             return None
 
-        jwt_header = json_decode(token.header)
+        jwt_header: dict[str, Any] = json_decode(token.header)
         if "typ" not in jwt_header:
             logger.info("Token missing 'typ' in the header")
             return None
@@ -685,7 +703,7 @@ class TokenAuthenticator:
             logger.info("Token can't be signed with algorithm 'none'")
             return None
 
-        jwt_claims = json_decode(token.claims)
+        jwt_claims: dict[str, Any] = json_decode(token.claims)
         if "jti" not in jwt_claims:
             logger.info("Missing 'jti' in claims")
             return None
@@ -698,8 +716,8 @@ class TokenAuthenticator:
             )
             return None
 
-        localpart = get_path_in_dict(config.localpart_path, jwt_claims)
-        displayname = get_path_in_dict(config.displayname_path, jwt_claims)
+        localpart: str | None = get_path_in_dict(config.localpart_path, jwt_claims)
+        displayname: str | None = get_path_in_dict(config.displayname_path, jwt_claims)
 
         if not localpart:
             logger.info("Missing localpart")
@@ -735,10 +753,10 @@ class TokenAuthenticator:
             )
 
         logger.info("All done and valid, logging in!")
-        return (fully_qualified_uid, None)
+        return fully_qualified_uid, None
 
     @staticmethod
-    def parse_config(config: dict):
+    def parse_config(config: dict[str, Any]):
         return TokenAuthenticatorConfig(config)
 
     async def _add_user_email(self, user_id, email) -> None:

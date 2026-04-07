@@ -57,7 +57,7 @@ def all_list_elems_are_equal_return_the_elem(list_: Iterable[T]) -> T | None:
     return val
 
 
-def get_path_in_dict(path: PathList, d: Any) -> Optional[Any]:
+def get_path_in_dict(path: PathList, d: dict[str, Any]) -> Any | None:
     if isinstance(path, str):
         path = [path]
     if len(path) == 0 or isinstance(path[0], str):
@@ -66,10 +66,11 @@ def get_path_in_dict(path: PathList, d: Any) -> Optional[Any]:
         r = d
         for segment in p:
             if not isinstance(r, dict):
-                return None
+                break
             r = r.get(segment)
-        if r is not None:
-            return r
+        else:
+            if r is not None:
+                return r
     return None
 
 

@@ -1,4 +1,6 @@
 import os
+from typing import Any
+
 from synapse_token_authenticator.config_classes import (
     EPaConfig,
     JwtConfig,
@@ -12,22 +14,28 @@ class TokenAuthenticatorConfig:
     Parses and validates the provided config dictionary.
     """
 
-    def __init__(self, other: dict):
-        if jwt := other.get("jwt"):
-            self.jwt = JwtConfig(jwt)
-            verify_jwt_based_cfg(self.jwt)
+    jwt: JwtConfig | None = None
+    oidc: OIDCConfig | None = None
+    oauth: OAuthConfig | None = None
+    epa: EPaConfig | None = None
 
-        if oidc := other.get("oidc"):
+    def __init__(self, other: dict[str, Any]):
+        if jwt := other.get("jwt", {}):
+            jwt_config = JwtConfig(jwt)
+            verify_jwt_based_cfg(jwt_config)
+            self.jwt = jwt_config
+
+        if oidc := other.get("oidc", {}):
             self.oidc = OIDCConfig(oidc)
 
-        if config := other.get("oauth"):
+        if config := other.get("oauth", {}):
             self.oauth = OAuthConfig(**config)
 
-        if epa := other.get("epa"):
+        if epa := other.get("epa", {}):
             self.epa = EPaConfig(**epa)
 
 
-def verify_jwt_based_cfg(cfg):
+def verify_jwt_based_cfg(cfg: JwtConfig):
     if cfg.secret is None and cfg.keyfile is None:
         raise Exception("Missing secret or keyfile")
     if cfg.keyfile is not None and not os.path.exists(cfg.keyfile):
