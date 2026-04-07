@@ -1,7 +1,8 @@
-from base64 import b64encode
-from urllib.parse import urljoin
-from typing import List, Optional, Any
 import json
+from base64 import b64encode
+from typing import Any, List, Optional
+from urllib.parse import urljoin
+
 from twisted.web import resource
 
 

@@ -1,5 +1,6 @@
-from synapse_token_authenticator.claims_validator import parse_validator
 from pytest import fixture
+
+from synapse_token_authenticator.claims_validator import parse_validator
 
 
 def test_validator_exists():

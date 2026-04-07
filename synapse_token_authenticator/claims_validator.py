@@ -16,10 +16,11 @@ Current solution:
    more complicated, we better switch to another engine/DSL
 """
 
-from dataclasses import dataclass
-from typing import List, Optional, Any, TypeAlias, Union
-from synapse_token_authenticator.utils import get_path_in_dict
 import re
+from dataclasses import dataclass
+from typing import Any, List, Optional, TypeAlias, Union
+
+from synapse_token_authenticator.utils import get_path_in_dict
 
 Validator: TypeAlias = Union[
     "Exist",

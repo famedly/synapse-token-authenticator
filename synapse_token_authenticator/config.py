@@ -1,13 +1,15 @@
 import os
 from dataclasses import dataclass, field
-from typing import List, Literal, Union, TypeAlias, Any
+from typing import Any, List, Literal, TypeAlias, Union
+
 from jwcrypto.jwk import JWK, JWKSet
+
 from synapse_token_authenticator.claims_validator import (
-    parse_validator,
-    Validator,
     Exist,
+    Validator,
+    parse_validator,
 )
-from synapse_token_authenticator.utils import bearer_auth, basic_auth
+from synapse_token_authenticator.utils import basic_auth, bearer_auth
 
 
 class TokenAuthenticatorConfig:
