@@ -41,14 +41,14 @@ dependencies = [
   "mock",
   "matrix-synapse",
   "ruff",
+  "mypy",
+  "mypy-zope",
+  "types-PyYAML",
+  "types-bleach",
+  "types-cachetools",
+  "types-requests",
+  "types-pyOpenSSL"
 ]
-[tool.hatch.envs.default.scripts]
-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests {args}"
-format = "black ."
-lint = "ruff check ."
-
-[tool.hatch.envs.ci.scripts]
-cov = "pytest --cov-report=lcov:lcov.info --cov-config=pyproject.toml --cov=synapse_token_authenticator --cov=tests"
 
 [tool.coverage.run]
 branch = true
@@ -57,3 +57,108 @@ omit = []
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+[tool.hatch.envs.hatch-static-analysis]
+dependencies = [
+  "black",
+  "isort",
+  "ruff",
+  "mypy",
+  "mypy-zope",
+  "types-PyYAML",
+  "types-bleach",
+  "types-cachetools",
+  "types-jwcrypto",
+  "types-requests",
+  "types-pyOpenSSL"
+]
+
+[tool.hatch.envs.hatch-static-analysis.scripts]
+format-check = [
+  "isort . --check --diff",
+  "black . --check --diff"
+]
+format-fix = [
+  "isort .",
+  "black ."
+]
+lint-check = [
+  "mypy",
+  "ruff check"
+]
+lint-fix = [
+  "mypy",
+  "ruff check --fix"
+]
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+install_types = true
+plugins = [
+  "mypy_zope:plugin"
+]
+files = ["synapse_token_authenticator", "tests"]
+
+[tool.isort]
+profile = "black"
+src_paths = ["synapse_token_authenticator", "tests"]
+
+[tool.hatch.envs.hatch-test]
+# These below are installed by default. This list is to help not reinstall something.
+# Updating hatch will change the version numbers, so ignore the pinned versions.
+#dependencies = [
+#  "coverage-enable-subprocess==1.0",
+#  "coverage[toml]~=7.11",
+#  "pytest~=9.0",
+#  "pytest-mock~=3.12",
+#  "pytest-randomly~=3.15",
+#  "pytest-rerunfailures~=14.0",
+#  "pytest-xdist[psutil]~=3.5",
+#]
+
+extra-dependencies = [
+  "pytest-cov",
+  "matrix-synapse",
+]
+extra-args = [
+  # use the loadscope dist method when running tests parallel. This keeps grouped tests
+  # together instead of splitting them up, which tends to get "stuck" and not finish
+  # the testing(have to use ^C to exit). Has no effect when tests are not parallelized.
+  "--dist=loadscope"
+]
+
+# The 'hatch test ...' command has the built-in scripts that define its invocation.
+# Override these scripts so coverage works as expected.
+#
+# In particular, the 'coverage run -m pytest ...' command does not work correctly.
+# In CI, it was not producing the subprocess-enabled coverage files, even though it
+# worked locally (there should have been 4 files, but only 1 was produced, and it had
+# no data). Using the pytest-cov plugin does seem to produce these files, and the
+# missing-lines display format is also correct. Since it handles the internal
+# combine/report commands, set those scripts below to do nothing (or CI will report
+# fake errors).
+[tool.hatch.envs.hatch-test.scripts]
+# The HATCH_TEST_ARGS environment variable is how the `test` command's flags are
+# translated and internally populated without affecting the user's arguments. This is
+# also the way that "extra arguments" are passed. Leave it there
+run = "pytest{env:HATCH_TEST_ARGS:} {args}"
+# The original 'run-cov' is below; this is overridden to produce coverage properly.
+#run-cov = "coverage run -m pytest{env:HATCH_TEST_ARGS:} {args}"
+# Notes for this command line: using --cov=synapse_token_authenticator instead of having
+# that directory in the 'coverage.run' config above actually produces the correct
+# coverage files (the ones that were missing, as mentioned above). The 'cov-report'
+# options both produce useful output (one for the codecov file and the other displays
+# the missing coverage lines).
+run-cov = "pytest{env:HATCH_TEST_ARGS:} --cov=synapse_token_authenticator --cov-report=lcov:lcov.info --cov-report=term-missing --cov-config=pyproject.toml {args}"
+
+# As mentioned above, the defaults for these scripts are commented out as they will
+# produce fake errors in CI. They attempt to run but the result of those commands
+# already exists. This raises error codes and fails the test.
+#cov-combine = "coverage combine"
+#cov-report = "coverage report"
+cov-combine = ""
+cov-report = ""
