@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.1] - 2026-04-09
+
+### Miscellaneous Tasks
+
+- chore: remove duplicated twisted dependency in pyproject.toml (#80) (FrenchGithubUser)
+- chore: Remove hatch scripts and replace with built-in hatch utilities (#84) (Jason Little)
+- chore: First re-formatting run (#84) (Jason Little)
+- chore: pin jwcrypto to 1.5.6 or lower temporarily (#84) (Jason Little)
+- add to .gitignore for .idea based IDE's (#83)
+
+### Bug Fixes
+
+- fix: prevent early return in PathList lookup when intermediate path fails (#81) (Niklas Zender)
+
 ## [0.13.0] - 2026-03-26
 
 ### Features
