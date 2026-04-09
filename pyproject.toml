@@ -109,18 +109,9 @@ profile = "black"
 src_paths = ["synapse_token_authenticator", "tests"]
 
 [tool.hatch.envs.hatch-test]
-# These below are installed by default. This list is to help not reinstall something.
-# Updating hatch will change the version numbers, so ignore the pinned versions.
-#dependencies = [
-#  "coverage-enable-subprocess==1.0",
-#  "coverage[toml]~=7.11",
-#  "pytest~=9.0",
-#  "pytest-mock~=3.12",
-#  "pytest-randomly~=3.15",
-#  "pytest-rerunfailures~=14.0",
-#  "pytest-xdist[psutil]~=3.5",
-#]
-
+# The Hatch test environment includes the default pytest, mock and coverage
+# dependencies. If you should need additional, use the 'extra-dependencies' section
+# below.
 extra-dependencies = [
   "pytest-cov",
   "matrix-synapse",
