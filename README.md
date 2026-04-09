@@ -452,13 +452,69 @@ For this flow the `user` field will be ignored.
 
 ## Testing
 
-The tests uses twisted's testing framework trial, with the development
-enviroment managed by hatch. Running the tests and generating a coverage report
+To create virtual development env and install dependencies:
+```console
+hatch shell
+```
+
+The tests use pytest, with the development environment managed by hatch. Running the tests
 can be done like this:
 
 ```console
-hatch run cov
+hatch test
 ```
+
+#### Additional optional testing arguments:
+Run the tests in parallel: `-p`
+
+Collect coverage data(automatically output as `lcov.info`): `-c`
+
+#### Running a specific test:
+Selecting a specific test to run can be as easy as providing the path to the test. All tests start from
+the base test directory, `tests`. If running all tests, this can be left out. For specific tests, see 
+the [pytest usage docs](https://docs.pytest.org/en/stable/how-to/usage.html#specifying-which-tests-to-run) for more information
+
+## Code Quality
+
+Use `hatch fmt` to automatically format code, enforce style rules, and check types using:
+
+- `black` and `isort` for formatting
+- `ruff` for linting
+- `mypy` for static type checking
+
+### Check Code Without Modifying It
+
+To check code quality without modifying files:
+
+- Check formatting with `isort` and `black`:
+  ```console
+  hatch fmt --check -f
+  ```
+- Check types and linting with `mypy` and `ruff`:
+  ```console
+  hatch fmt --check -l
+  ```
+- Check all of above, formatting, linting, and typing:
+  ```console
+  hatch fmt --check
+  ```
+
+### Auto-formatting Code
+
+To automatically fix issues in the code:
+
+- Format only using `black` and `isort`:
+  ```console
+  hatch fmt -f
+  ```
+- Type checks(`mypy`) and lint, fixing autofixable `ruff` issues:
+  ```console
+  hatch fmt -l
+  ```
+- Run all tools, format, lint, type-check:
+  ```console
+  hatch fmt
+  ```
 
 ## Releasing
 

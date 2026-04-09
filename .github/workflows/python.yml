@@ -54,7 +54,7 @@ jobs:
           args: check --target-version ${{ env.PYTHON_TARGET }}
 
       - name: Tests and coverage
-        run: hatch run cov
+        run: hatch test -p -c
 
       - name: Codecov - Upload coverage
         uses: codecov/codecov-action@v4

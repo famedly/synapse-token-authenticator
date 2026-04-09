@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+from copy import deepcopy
 from unittest import mock
+
+from jwcrypto.jwk import JWKSet
 
 import tests.unittest as synapsetest
 
-from . import ModuleApiTestCase, get_jwt_token, get_jwk, mock_for_oauth
-from copy import deepcopy
-from jwcrypto.jwk import JWKSet
+from . import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
 
 default_claims = {
     "urn:messaging:matrix:localpart": "alice",

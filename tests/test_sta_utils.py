@@ -1,8 +1,8 @@
 from synapse_token_authenticator.utils import (
-    get_path_in_dict,
-    validate_scopes,
-    if_not_none,
     all_list_elems_are_equal_return_the_elem,
+    get_path_in_dict,
+    if_not_none,
+    validate_scopes,
 )
 
 

@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+from copy import deepcopy
 from unittest import mock
+
+from jwcrypto import jwk
 
 import tests.unittest as synapsetest
 
 from . import ModuleApiTestCase, get_enc_jwk, get_jwe_token, get_jwk, get_jwt_token
-from copy import deepcopy
-from jwcrypto import jwk
 
 
 def get_default_claims() -> dict:
