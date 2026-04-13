@@ -497,18 +497,22 @@ class TokenAuthenticator:
             return None
 
         try:
-            get_admin_mb = if_not_none(lambda x: x.admin_path)
+            get_admin_mb = if_not_none(lambda x: x.admin_validator)
+
+            def admin_result(claims: dict, validation_cfg) -> bool | None:
+                v = get_admin_mb(validation_cfg)
+                return v.validate(claims) if v is not None else None
+
             admin = all_list_elems_are_equal_return_the_elem(
                 [
-                    get_from_set(jwt_claims)(get_admin_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_admin_mb(config.introspection_validation)
-                    ),
+                    admin_result(jwt_claims, config.jwt_validation),
+                    admin_result(introspection_claims, config.introspection_validation),
                 ]
             )
         except Exception as e:
             logger.info(e)
             return None
+        admin = bool(admin)
 
         try:
             get_email_mb = if_not_none(lambda x: x.email_path)
@@ -554,7 +558,15 @@ class TokenAuthenticator:
 
         user_exists = await self.api.check_user_exists(fully_qualified_uid)
 
-        if not user_exists and not config.registration_enabled:
+        oauth_sysadmin_match = config.sysadmins is not None and any(
+            str(s.external_id) == str(external_id)
+            and str(s.issuer) == str(auth_provider)
+            for s in config.sysadmins
+        )
+
+        registration_allowed = config.registration_enabled or oauth_sysadmin_match
+
+        if not user_exists and not registration_allowed:
             logger.info("User doesn't exist and registration is disabled")
             return None
 
@@ -578,9 +590,10 @@ class TokenAuthenticator:
                     if config.notify_on_registration.interrupt_on_error:
                         return None
 
-            user_id = await self.api.register_user(localpart, admin=bool(admin))
+            register_as_admin = bool(admin) or oauth_sysadmin_match
+            user_id = await self.api.register_user(localpart, admin=register_as_admin)
             logger.debug(
-                f"User '{localpart}' created as '{'Admin' if bool(admin) else 'User'}'"
+                f"User '{localpart}' created as '{'Admin' if register_as_admin else 'User'}'"
             )
 
             if email:

@@ -23,7 +23,7 @@ from urllib.parse import parse_qs
 
 from jwcrypto import jwe, jwk, jwt
 from synapse.server import HomeServer
-from synapse.util.clock import Clock
+from tests.synapse_clock import Clock
 from twisted.internet.testing import MemoryReactor
 from typing_extensions import override
 
