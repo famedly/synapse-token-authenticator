@@ -57,7 +57,9 @@ class CustomFlowTests(ModuleApiTestCase):
         self.assertEqual(result, None)
 
     async def test_token_wrong_secret(self):
-        token = get_jwt_token("aliceid", secret="wrong secret", claims=default_claims)
+        # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
+        secret = "wrong secret1234" * 4
+        token = get_jwt_token("aliceid", secret=secret, claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )

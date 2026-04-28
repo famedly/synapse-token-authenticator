@@ -52,9 +52,9 @@ class CustomFlowTests(ModuleApiTestCase):
         self.assertEqual(result, None)
 
     async def test_token_wrong_secret(self):
-        token = get_jwe_token(
-            "alice", secret="wrong secret", claims=get_default_claims()
-        )
+        # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
+        secret = "wrong secret1234" * 4
+        token = get_jwe_token("alice", secret=secret, claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
