@@ -17,11 +17,11 @@ class TokenAuthenticatorConfig:
     Parses and validates the provided config dictionary.
     """
 
-    def __init__(self, other: dict):
+    def __init__(self, other: dict) -> None:
         if jwt := other.get("jwt"):
 
             class JwtConfig:
-                def __init__(self, other: dict):
+                def __init__(self, other: dict) -> None:
                     self.secret: str | None = other.get("secret")
                     self.keyfile: str | None = other.get("keyfile")
 
@@ -37,7 +37,7 @@ class TokenAuthenticatorConfig:
         if oidc := other.get("oidc"):
 
             class OIDCConfig:
-                def __init__(self, other: dict):
+                def __init__(self, other: dict) -> None:
                     try:
                         self.issuer: str = other["issuer"]
                         self.client_id: str = other["client_id"]
@@ -77,7 +77,7 @@ class TokenAuthenticatorConfig:
                 jwk_file: str | None = None
                 jwks_endpoint: str | None = None
 
-                def __post_init__(self):
+                def __post_init__(self) -> None:
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
 
@@ -104,7 +104,7 @@ class TokenAuthenticatorConfig:
                 email_path: Path | None = None
                 required_scopes: str | List[str] | None = None
 
-                def __post_init__(self):
+                def __post_init__(self) -> None:
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
 
@@ -117,7 +117,7 @@ class TokenAuthenticatorConfig:
                 auth: HttpAuth = field(default_factory=NoAuth)
                 interrupt_on_error: bool = True
 
-                def __post_init__(self):
+                def __post_init__(self) -> None:
                     if not isinstance(self.auth, NoAuth):
                         self.auth = parse_auth(self.auth)
 
@@ -131,7 +131,7 @@ class TokenAuthenticatorConfig:
                 registration_enabled: bool = False
                 check_external_id: bool = True
 
-                def __post_init__(self):
+                def __post_init__(self) -> None:
                     if self.notify_on_registration:
                         self.notify_on_registration = NotifyOnRegistration(
                             **self.notify_on_registration
@@ -177,7 +177,7 @@ class TokenAuthenticatorConfig:
                 displayname_path: str | None = None
                 lowercase_localpart: bool = False
 
-                def __post_init__(self):
+                def __post_init__(self) -> None:
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
 
@@ -202,7 +202,7 @@ class TokenAuthenticatorConfig:
             self.epa = EPaConfig(**epa)
 
 
-def verify_jwt_based_cfg(cfg):
+def verify_jwt_based_cfg(cfg) -> None:
     if cfg.secret is None and cfg.keyfile is None:
         raise Exception("Missing secret or keyfile")
     if cfg.keyfile is not None and not os.path.exists(cfg.keyfile):

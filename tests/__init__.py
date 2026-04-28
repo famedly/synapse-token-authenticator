@@ -40,8 +40,8 @@ _DEFAULT_TOKEN_SECRET = "jwcrypto" * 8
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
     @classmethod
-    def setUpClass(cls):
-        async def set_user_admin(user_id: str, admin: bool):
+    def setUpClass(cls) -> None:
+        async def set_user_admin(user_id: str, admin: bool) -> None:
             return admins.update({user_id: admin})
 
         async def is_user_admin(user_id: str):

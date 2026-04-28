@@ -11,7 +11,7 @@ class OpenIDProviderMetadata:
     Wrapper around OpenID Provider Metadata values
     """
 
-    def __init__(self, issuer: str, configuration: dict):
+    def __init__(self, issuer: str, configuration: dict) -> None:
         self.issuer = issuer
         self.introspection_endpoint: str = configuration["introspection_endpoint"]
         self.jwks_uri: str = configuration["jwks_uri"]
@@ -77,7 +77,7 @@ def validate_scopes(required_scopes: str | List[str], provided_scopes: str) -> b
 
 
 class MetadataResource(resource.Resource):
-    def __init__(self, resource: object):
+    def __init__(self, resource: object) -> None:
         self.resource = resource
 
     def render_GET(self, request):

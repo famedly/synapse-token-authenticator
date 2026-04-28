@@ -3,31 +3,31 @@ from pytest import fixture
 from synapse_token_authenticator.claims_validator import parse_validator
 
 
-def test_validator_exists():
+def test_validator_exists() -> None:
     assert parse_validator(["exist"]).validate(None)
 
 
-def test_validator_in():
+def test_validator_in() -> None:
     assert parse_validator(["in", "foo"]).validate({"foo": 3})
     assert not parse_validator(["in", "foo"]).validate({"loo": 3})
     assert parse_validator(["in", "foo", ["equal", 3]]).validate({"foo": 3})
     assert not parse_validator(["in", "foo", ["equal", 3]]).validate({"foo": 4})
 
 
-def test_validator_not():
+def test_validator_not() -> None:
     assert not parse_validator(["not", ["in", "foo"]]).validate({"foo": 3})
     assert parse_validator(["not", ["in", "foo"]]).validate({"loo": 3})
     assert not parse_validator(["not", ["exist"]]).validate(None)
 
 
-def test_validator_equal():
+def test_validator_equal() -> None:
     assert parse_validator(["equal", 3]).validate(3)
     assert not parse_validator(["equal", 3]).validate(4)
     assert parse_validator(["equal", {"hi": 3}]).validate({"hi": 3})
     assert not parse_validator(["equal", {"hi": 3}]).validate({"hi": 4})
 
 
-def test_validator_regex():
+def test_validator_regex() -> None:
     txt = "The rain in Spain"
     regexp = "The.*Spain"
     assert parse_validator(["regex", regexp]).validate(txt)
@@ -35,7 +35,7 @@ def test_validator_regex():
     assert not parse_validator(["regex", regexp]).validate("bad string")
 
 
-def test_validator_all_of():
+def test_validator_all_of() -> None:
     assert parse_validator(["all_of", [["in", "foo"], ["in", "loo"]]]).validate(
         {"foo": 3, "loo": 4}
     )
@@ -45,7 +45,7 @@ def test_validator_all_of():
     assert parse_validator(["all_of", []]).validate([])
 
 
-def test_validator_any_of():
+def test_validator_any_of() -> None:
     assert parse_validator(["any_of", [["in", "foo"], ["in", "loo"]]]).validate(
         {"foo": 3, "loo": 4}
     )
@@ -58,7 +58,7 @@ def test_validator_any_of():
     assert not parse_validator(["any_of", []]).validate({})
 
 
-def test_validator_list_all_of():
+def test_validator_list_all_of() -> None:
     assert parse_validator(["list_all_of", ["in", "foo"]]).validate(
         [{"foo": 3}, {"foo": 4}]
     )
@@ -68,7 +68,7 @@ def test_validator_list_all_of():
     )
 
 
-def test_validator_list_any_of():
+def test_validator_list_any_of() -> None:
     assert parse_validator(["list_any_of", ["in", "foo"]]).validate(
         [{"foo": 3}, {"foo": 4}]
     )
@@ -92,7 +92,7 @@ def jwt_claims():
     }
 
 
-def test_validator_full(jwt_claims):
+def test_validator_full(jwt_claims) -> None:
     required_claims = {
         "type": "all_of",
         "validators": [
@@ -124,7 +124,7 @@ def test_validator_full(jwt_claims):
     assert parse_validator(required_claims).validate(jwt_claims)
 
 
-def test_validator_short(jwt_claims):
+def test_validator_short(jwt_claims) -> None:
     required_claims_short = [
         "all_of",
         [
