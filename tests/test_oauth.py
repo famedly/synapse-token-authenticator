@@ -17,6 +17,7 @@ from copy import deepcopy
 from unittest import mock
 
 from jwcrypto.jwk import JWKSet
+from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
 
@@ -104,7 +105,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result, None)
 
-    config_for_jwt = {
+    config_for_jwt: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -385,7 +386,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    config_for_introspection = {
+    config_for_introspection: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",

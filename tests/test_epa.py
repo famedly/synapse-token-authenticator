@@ -17,6 +17,7 @@ from copy import deepcopy
 from unittest import mock
 
 from jwcrypto import jwk
+from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
 
@@ -140,7 +141,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         self.assertEqual(result, None)
 
-    config_for_epa = {
+    config_for_epa: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
