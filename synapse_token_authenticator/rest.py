@@ -4,9 +4,11 @@ from urllib.parse import urljoin
 from jwcrypto.jwk import JWKSet
 from twisted.web import resource
 
+from synapse_token_authenticator.config import OIDCConfig
+
 
 class LoginMetadataResource(resource.Resource):
-    def __init__(self, oidc_config: object):
+    def __init__(self, oidc_config: OIDCConfig):
         self.issuer = oidc_config.issuer
         self.metadata_url = urljoin(
             oidc_config.issuer, "/.well-known/openid-configuration"
