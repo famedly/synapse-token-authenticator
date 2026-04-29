@@ -35,7 +35,7 @@ Validator: TypeAlias = Union[
 ]
 
 
-def parse_validator(d: dict) -> Validator:
+def parse_validator(d: dict | list) -> Validator:
     if isinstance(d, dict):
         type = d.pop("type")
         if type == "exist":
@@ -94,7 +94,7 @@ class Exist:
 class Not:
     validator: Validator
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.validator = parse_validator(self.validator)
 
     def validate(self, x: Any) -> bool:
@@ -114,7 +114,7 @@ class MatchesRegex:
     regex: str
     full_match: bool | None = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.regex_prog = re.compile(self.regex)
 
     def validate(self, s: Any) -> bool:
@@ -130,7 +130,7 @@ class MatchesRegex:
 class AnyOf:
     validators: List[Validator]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.validators = list(map(lambda v: parse_validator(v), self.validators))
 
     def validate(self, x: Any) -> bool:
@@ -141,7 +141,7 @@ class AnyOf:
 class AllOf:
     validators: List[Validator]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.validators = list(map(lambda v: parse_validator(v), self.validators))
 
     def validate(self, x: Any) -> bool:
@@ -153,7 +153,7 @@ class In:
     path: str | List[str]
     validator: Optional[Validator] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.path:
             raise Exception("Path list is empty")
         if self.validator:
@@ -172,7 +172,7 @@ class In:
 class ListAllOf:
     validator: Validator
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.validator:
             self.validator = parse_validator(self.validator)
 
@@ -186,7 +186,7 @@ class ListAllOf:
 class ListAnyOf:
     validator: Validator
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.validator:
             self.validator = parse_validator(self.validator)
 

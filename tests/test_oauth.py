@@ -17,6 +17,7 @@ from copy import deepcopy
 from unittest import mock
 
 from jwcrypto.jwk import JWKSet
+from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
 
@@ -37,74 +38,74 @@ default_claims = {
 
 
 class CustomFlowTests(ModuleApiTestCase):
-    async def test_wrong_login_type(self):
+    async def test_wrong_login_type(self) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_missing_token(self):
-        result = await self.hs.mockmod.check_oauth(
+    async def test_missing_token(self) -> None:
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {}
         )
         self.assertEqual(result, None)
 
-    async def test_invalid_token(self):
-        result = await self.hs.mockmod.check_oauth(
+    async def test_invalid_token(self) -> None:
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": "invalid"}
         )
         self.assertEqual(result, None)
 
-    async def test_token_wrong_secret(self):
+    async def test_token_wrong_secret(self) -> None:
         # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
         secret = "wrong secret1234" * 4
         token = get_jwt_token("aliceid", secret=secret, claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_expired(self):
+    async def test_token_expired(self) -> None:
         token = get_jwt_token("aliceid", exp_in=-60, claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_no_expiry(self):
+    async def test_token_no_expiry(self) -> None:
         token = get_jwt_token("aliceid", exp_in=-1, claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_bad_localpart(self):
+    async def test_token_bad_localpart(self) -> None:
         claims = default_claims.copy()
         claims["urn:messaging:matrix:localpart"] = "bobby"
         token = get_jwt_token("aliceid", claims=claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_bad_mxid(self):
+    async def test_token_bad_mxid(self) -> None:
         claims = default_claims.copy()
         claims["urn:messaging:matrix:mxid"] = "@bobby:example.test"
         token = get_jwt_token("aliceid", claims=claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_claims_username_mismatch(self):
+    async def test_token_claims_username_mismatch(self) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "bobby", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
 
-    config_for_jwt = {
+    config_for_jwt: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -129,9 +130,9 @@ class CustomFlowTests(ModuleApiTestCase):
 
     @synapsetest.override_config(config_for_jwt_reg_disabled)
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
-    async def test_valid_login_registration_disabled(self, *args):
+    async def test_valid_login_registration_disabled(self, *args) -> None:
         token = get_jwt_token("alice", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
         self.assertEqual(result, None)
@@ -142,9 +143,9 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
         return_value=[],
     )
-    async def test_token_no_expiry_with_config(self, *args):
+    async def test_token_no_expiry_with_config(self, *args) -> None:
         token = get_jwt_token("aliceid", exp_in=-1, claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -154,9 +155,9 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
         return_value=[],
     )
-    async def test_valid_login(self, *args):
+    async def test_valid_login(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -169,18 +170,18 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_valid_login_register(self, *args):
+    async def test_valid_login_register(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    async def test_invalid_scope(self):
+    async def test_invalid_scope(self) -> None:
         claims = default_claims.copy()
         claims["scope"] = "foo"
         token = get_jwt_token("aliceid", claims=claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
@@ -204,9 +205,9 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
         return_value=[],
     )
-    async def test_fetch_jwks(self, *args):
+    async def test_fetch_jwks(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -229,9 +230,9 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
-    async def test_login_register_admin(self, register_user_mock, *args):
+    async def test_login_register_admin(self, register_user_mock, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
 
@@ -256,9 +257,11 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
-    async def test_login_register_multiple_admin_paths(self, register_user_mock, *args):
+    async def test_login_register_multiple_admin_paths(
+        self, register_user_mock, *args
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
 
@@ -280,9 +283,11 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
-    async def test_login_register_admin_negative(self, register_user_mock, *args):
+    async def test_login_register_admin_negative(
+        self, register_user_mock, *args
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
 
@@ -297,9 +302,11 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_login_register_external_user_id(self, external_id_mock, *args):
+    async def test_login_register_external_user_id(
+        self, external_id_mock, *args
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
 
@@ -328,9 +335,9 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse_token_authenticator.TokenAuthenticator._add_user_email",
         new_callable=mock.AsyncMock,
     )
-    async def test_login_register_threepid(self, add_threepid_mock, *args):
+    async def test_login_register_threepid(self, add_threepid_mock, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
 
@@ -349,9 +356,9 @@ class CustomFlowTests(ModuleApiTestCase):
             ("http://test.example", "aliceid"),
         ],
     )
-    async def test_login_check_external_id(self, *args):
+    async def test_login_check_external_id(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -362,9 +369,9 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
         return_value=[("some_auth_provider", "some_external_id")],
     )
-    async def test_login_check_external_id_negative(self, *args):
+    async def test_login_check_external_id_negative(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
@@ -378,14 +385,14 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
         return_value=[("some_auth_provider", "some_external_id")],
     )
-    async def test_login_check_external_id_disabled(self, *args):
+    async def test_login_check_external_id_disabled(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    config_for_introspection = {
+    config_for_introspection: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -416,9 +423,9 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_valid_login_introspection(self, *args):
+    async def test_valid_login_introspection(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -433,9 +440,9 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
     )
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
-    async def test_login_introspection_notify_fails(self, *args):
+    async def test_login_introspection_notify_fails(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
@@ -456,9 +463,9 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_login_introspection_notify_fails_but_ok(self, *args):
+    async def test_login_introspection_notify_fails_but_ok(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
@@ -472,11 +479,11 @@ class CustomFlowTests(ModuleApiTestCase):
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
     )
-    async def test_login_introspection_invalid_scope(self, *args):
+    async def test_login_introspection_invalid_scope(self, *args) -> None:
         claims = default_claims.copy()
         claims["scope"] = "foo"
         token = get_jwt_token("aliceid", claims=claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         self.assertEqual(result, None)
@@ -496,9 +503,11 @@ class CustomFlowTests(ModuleApiTestCase):
         new_callable=mock.AsyncMock,
     )
     @mock.patch("synapse.module_api.ModuleApi.register_user")
-    async def test_login_introspection_register_admin(self, register_user_mock, *args):
+    async def test_login_introspection_register_admin(
+        self, register_user_mock, *args
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         register_user_mock.assert_called_with("alice", admin=True)
@@ -521,9 +530,9 @@ class CustomFlowTests(ModuleApiTestCase):
     @mock.patch("synapse.module_api.ModuleApi.register_user")
     async def test_login_introspection_register_multiple_admin_paths(
         self, register_user_mock, *args
-    ):
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         register_user_mock.assert_called_with("alice", admin=True)
@@ -537,9 +546,11 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse.module_api.ModuleApi.record_user_external_id",
         new_callable=mock.AsyncMock,
     )
-    async def test_login_introspection_external_user_id(self, external_id_mock, *args):
+    async def test_login_introspection_external_user_id(
+        self, external_id_mock, *args
+    ) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         external_id_mock.assert_called_with(
@@ -567,9 +578,9 @@ class CustomFlowTests(ModuleApiTestCase):
         "synapse_token_authenticator.TokenAuthenticator._add_user_email",
         new_callable=mock.AsyncMock,
     )
-    async def test_login_introspection_threepid(self, add_threepid_mock, *args):
+    async def test_login_introspection_threepid(self, add_threepid_mock, *args) -> None:
         token = get_jwt_token("aliceid", claims=default_claims)
-        result = await self.hs.mockmod.check_oauth(
+        result = await self.token_authenticator.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         add_threepid_mock.assert_called_with(

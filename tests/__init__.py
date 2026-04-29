@@ -30,7 +30,7 @@ from typing_extensions import override
 import tests.unittest as synapsetest
 from tests.test_utils import FakeResponse as Response
 
-admins = {}
+admins: dict[str, bool] = {}
 logger = logging.getLogger(__name__)
 ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
 # secrets for token generation need to be 64 chars long, as it needs to have 512 bits
@@ -40,17 +40,17 @@ _DEFAULT_TOKEN_SECRET = "jwcrypto" * 8
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
     @classmethod
-    def setUpClass(cls):
-        async def set_user_admin(user_id: str, admin: bool):
+    def setUpClass(cls) -> None:
+        async def set_user_admin(user_id: str, admin: bool) -> None:
             return admins.update({user_id: admin})
 
-        async def is_user_admin(user_id: str):
+        async def is_user_admin(user_id: str) -> bool:
             return admins.get(user_id, False)
 
         async def register_user(
             localpart: str,
             admin: bool = False,
-        ):
+        ) -> str:
             return "@alice:example.test"
 
         cls.patchers = [
@@ -89,11 +89,13 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
     def prepare(
         self, reactor: MemoryReactor, clock: Clock, homeserver: HomeServer
     ) -> None:
+        super().prepare(reactor, clock, homeserver)
         self.store = homeserver.get_datastores().main
         self.module_api = homeserver.get_module_api()
         self.event_creation_handler = homeserver.get_event_creation_handler()
         self.sync_handler = homeserver.get_sync_handler()
         self.auth_handler = homeserver.get_auth_handler()
+        self.token_authenticator = homeserver.mockmod  # type: ignore[attr-defined]
 
     @override
     def make_homeserver(self, reactor: MemoryReactor, clock: Clock) -> HomeServer:
@@ -212,7 +214,12 @@ def get_jwe_token(
         "typ": "JWE",
         "kid": enc_key.key_id,
     }
-    jwetoken = jwe.JWE(token, recipient=enc_key.public(), protected=protected_header)
+    # The recipient kwarg is mistyped in type-sched. It should be `JWK | None` and is
+    # instead labeled as a `str | None`. The `public()` function is correct so this will
+    # be ignored.
+    jwetoken = jwe.JWE(
+        token, recipient=enc_key.public(), protected=json.dumps(protected_header)  # type: ignore[arg-type]
+    )
 
     return jwetoken.serialize(True)
 

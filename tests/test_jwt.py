@@ -21,51 +21,51 @@ from . import _DEFAULT_TOKEN_SECRET, ModuleApiTestCase, get_jwt_token
 
 
 class JWTTests(ModuleApiTestCase):
-    async def test_wrong_login_type(self):
+    async def test_wrong_login_type(self) -> None:
         token = get_jwt_token("alice")
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "m.password", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_missing_token(self):
-        result = await self.hs.mockmod.check_jwt_auth(
+    async def test_missing_token(self) -> None:
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {}
         )
         self.assertEqual(result, None)
 
-    async def test_invalid_token(self):
-        result = await self.hs.mockmod.check_jwt_auth(
+    async def test_invalid_token(self) -> None:
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": "invalid"}
         )
         self.assertEqual(result, None)
 
-    async def test_token_wrong_secret(self):
+    async def test_token_wrong_secret(self) -> None:
         # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
         secret = "wrong secret1234" * 4
         token = get_jwt_token("alice", secret=secret)
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_wrong_alg(self):
+    async def test_token_wrong_alg(self) -> None:
         token = get_jwt_token("alice", algorithm="HS256")
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_expired(self):
+    async def test_token_expired(self) -> None:
         token = get_jwt_token("alice", exp_in=-60)
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_token_no_expiry(self):
+    async def test_token_no_expiry(self) -> None:
         token = get_jwt_token("alice", exp_in=-1)
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
@@ -85,33 +85,33 @@ class JWTTests(ModuleApiTestCase):
             ]
         }
     )
-    async def test_token_no_expiry_with_config(self, *args):
+    async def test_token_no_expiry_with_config(self, *args) -> None:
         token = get_jwt_token("alice", exp_in=-1)
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    async def test_valid_login(self):
+    async def test_valid_login(self) -> None:
         token = get_jwt_token("alice")
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
-    async def test_valid_login_no_register(self, *args):
+    async def test_valid_login_no_register(self, *args) -> None:
         token = get_jwt_token("alice")
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
 
-    async def test_chatbox_login(self):
+    async def test_chatbox_login(self) -> None:
         token = get_jwt_token(
             "alice_5833eb34-7dbf-44a7-90cf-868c50922c06", claims={"type": "chatbox"}
         )
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice_5833eb34-7dbf-44a7-90cf-868c50922c06",
             "com.famedly.login.token",
             {"token": token},
@@ -121,9 +121,9 @@ class JWTTests(ModuleApiTestCase):
         )
 
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
-    async def test_chatbox_login_invalid_format(self, *args):
+    async def test_chatbox_login_invalid_format(self, *args) -> None:
         token = get_jwt_token("alice", claims={"type": "chatbox"})
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result, None)
@@ -144,16 +144,16 @@ class JWTTests(ModuleApiTestCase):
             ]
         }
     )
-    async def test_valid_login_with_register(self, *args):
+    async def test_valid_login_with_register(self, *args) -> None:
         token = get_jwt_token("alice")
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
 
-    async def test_valid_login_with_admin(self):
+    async def test_valid_login_with_admin(self) -> None:
         token = get_jwt_token("alice", admin=True)
-        result = await self.hs.mockmod.check_jwt_auth(
+        result = await self.token_authenticator.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
         self.assertEqual(result[0], "@alice:example.test")
