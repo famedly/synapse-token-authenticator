@@ -24,7 +24,7 @@ import tests.unittest as synapsetest
 from . import ModuleApiTestCase, get_enc_jwk, get_jwe_token, get_jwk, get_jwt_token
 
 
-def get_default_claims() -> dict:
+def get_default_claims() -> JsonDict:
     return {
         "aud": "https://famedly.de",
         "jti": "666f3725783e5356544fce5d869",

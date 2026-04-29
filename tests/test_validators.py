@@ -1,4 +1,5 @@
 from pytest import fixture
+from synapse.types import JsonDict
 
 from synapse_token_authenticator.claims_validator import parse_validator
 
@@ -79,7 +80,7 @@ def test_validator_list_any_of() -> None:
 
 
 @fixture
-def jwt_claims():
+def jwt_claims() -> JsonDict:
     return {
         "foo": "hello",
         "bar": "hi",
