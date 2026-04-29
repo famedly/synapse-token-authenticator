@@ -35,7 +35,7 @@ Validator: TypeAlias = Union[
 ]
 
 
-def parse_validator(d: dict) -> Validator:
+def parse_validator(d: dict | list) -> Validator:
     if isinstance(d, dict):
         type = d.pop("type")
         if type == "exist":
