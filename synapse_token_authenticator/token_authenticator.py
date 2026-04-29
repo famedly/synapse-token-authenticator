@@ -17,7 +17,7 @@ import json
 import logging
 import re
 from collections.abc import Awaitable
-from typing import Callable, Optional
+from typing import Callable
 from urllib.parse import urljoin
 
 import synapse
@@ -139,12 +139,13 @@ class TokenAuthenticator:
 
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
         ]
-    ]:
+        | None
+    ):
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
@@ -231,12 +232,13 @@ class TokenAuthenticator:
 
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
         ]
-    ]:
+        | None
+    ):
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oidc":
             logger.info("Wrong login type")
@@ -320,12 +322,13 @@ class TokenAuthenticator:
 
     async def check_oauth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
         ]
-    ]:
+        | None
+    ):
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -620,12 +623,13 @@ class TokenAuthenticator:
 
     async def check_epa(
         self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
             str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
         ]
-    ]:
+        | None
+    ):
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
