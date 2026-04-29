@@ -17,7 +17,7 @@ import json
 import logging
 import re
 from collections.abc import Awaitable
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional
 from urllib.parse import urljoin
 
 import synapse
@@ -27,7 +27,6 @@ from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
 from synapse.types import UserID
-from twisted.internet import defer
 from twisted.web import resource
 
 from synapse_token_authenticator.auth_headers import basic_auth
@@ -734,16 +733,10 @@ class TokenAuthenticator:
     def parse_config(config: dict):
         return TokenAuthenticatorConfig(config)
 
-    def _add_user_email(self, user_id, email) -> defer.Deferred:
-        return defer.ensureDeferred(
-            self.api._auth_handler.add_threepid(
-                user_id, "email", email, self.api._hs.get_clock().time_msec()
-            )
+    async def _add_user_email(self, user_id: str, email: str) -> None:
+        return await self.api._auth_handler.add_threepid(
+            user_id, "email", email, self.api._hs.get_clock().time_msec()
         )
 
-    def _get_external_id(
-        self, fully_qualified_uid: str
-    ) -> "defer.Deferred[List[Tuple[str, str]]]":
-        return defer.ensureDeferred(
-            self.api._store.get_external_ids_by_user(fully_qualified_uid)
-        )
+    async def _get_external_id(self, fully_qualified_uid: str) -> list[tuple[str, str]]:
+        return await self.api._store.get_external_ids_by_user(fully_qualified_uid)
