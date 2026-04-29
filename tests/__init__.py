@@ -30,7 +30,7 @@ from typing_extensions import override
 import tests.unittest as synapsetest
 from tests.test_utils import FakeResponse as Response
 
-admins = {}
+admins: dict[str, bool] = {}
 logger = logging.getLogger(__name__)
 ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
 # secrets for token generation need to be 64 chars long, as it needs to have 512 bits
@@ -44,13 +44,13 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
         async def set_user_admin(user_id: str, admin: bool) -> None:
             return admins.update({user_id: admin})
 
-        async def is_user_admin(user_id: str):
+        async def is_user_admin(user_id: str) -> bool:
             return admins.get(user_id, False)
 
         async def register_user(
             localpart: str,
             admin: bool = False,
-        ):
+        ) -> str:
             return "@alice:example.test"
 
         cls.patchers = [
