@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
+
 import base64
 import logging
 import re
 from collections.abc import Awaitable
-from typing import Callable
+from typing import Callable, TypeAlias
 
 import synapse
 from jwcrypto import jwk, jwt
@@ -24,7 +26,8 @@ from jwcrypto.common import JWException, json_decode
 from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
 from synapse.module_api import ModuleApi
-from synapse.types import UserID
+from synapse.rest.client.login import LoginResponse
+from synapse.types import JsonDict, UserID
 
 from synapse_token_authenticator.auth_headers import basic_auth
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
@@ -42,6 +45,12 @@ from synapse_token_authenticator.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+TypeTokenAuthReturn: TypeAlias = tuple[
+    str,
+    Callable[[LoginResponse], Awaitable[None]] | None,
+]
 
 
 class TokenAuthenticator:
@@ -109,14 +118,8 @@ class TokenAuthenticator:
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
     async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str,
-            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> TypeTokenAuthReturn | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
@@ -202,14 +205,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oidc_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str,
-            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> TypeTokenAuthReturn | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oidc":
             logger.info("Wrong login type")
@@ -292,14 +289,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oauth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str,
-            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> TypeTokenAuthReturn | None:
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -593,14 +584,8 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     async def check_epa(
-        self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str,
-            Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None,
-        ]
-        | None
-    ):
+        self, _username: str, login_type: str, login_dict: JsonDict
+    ) -> TypeTokenAuthReturn | None:
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
