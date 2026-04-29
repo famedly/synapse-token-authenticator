@@ -27,17 +27,6 @@ async def get_oidp_metadata(issuer, client) -> OpenIDProviderMetadata:
     return OpenIDProviderMetadata(issuer, config)
 
 
-def basic_auth(username: str, password: str) -> dict[bytes, list[bytes]]:
-    authorization = b64encode(
-        b":".join((username.encode("utf8"), password.encode("utf8")))
-    )
-    return {b"Authorization": [b"Basic " + authorization]}
-
-
-def bearer_auth(token: str) -> dict[bytes, list[bytes]]:
-    return {b"Authorization": [b"Bearer " + token.encode("utf8")]}
-
-
 def if_not_none(f):
     return lambda x: (f(x) if x is not None else None)
 

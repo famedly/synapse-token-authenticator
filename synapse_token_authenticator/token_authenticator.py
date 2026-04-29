@@ -30,11 +30,11 @@ from synapse.types import UserID
 from twisted.internet import defer
 from twisted.web import resource
 
+from synapse_token_authenticator.auth_headers import basic_auth
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.utils import (
     MetadataResource,
     all_list_elems_are_equal_return_the_elem,
-    basic_auth,
     get_oidp_metadata,
     get_path_in_dict,
     if_not_none,

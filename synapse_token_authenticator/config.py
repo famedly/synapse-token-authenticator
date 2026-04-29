@@ -4,12 +4,12 @@ from typing import Any, List, Literal, TypeAlias, Union
 
 from jwcrypto.jwk import JWK, JWKSet
 
+from synapse_token_authenticator.auth_headers import HttpAuth, NoAuth, parse_auth
 from synapse_token_authenticator.claims_validator import (
     Exist,
     Validator,
     parse_validator,
 )
-from synapse_token_authenticator.utils import basic_auth, bearer_auth
 
 
 class TokenAuthenticatorConfig:
@@ -224,54 +224,3 @@ def verify_jwt_based_cfg(cfg) -> None:
         "EdDSA",
     ]:
         raise Exception(f"Unknown algorithm: '{cfg.algorithm}'")
-
-
-@dataclass
-class NoAuth:
-    def header_map(self):
-        return {}
-
-
-@dataclass
-class BasicAuth:
-    username: str
-    password: str
-
-    def header_map(self):
-        return basic_auth(self.username, self.password)
-
-
-@dataclass
-class BearerAuth:
-    token: str
-
-    def header_map(self):
-        return bearer_auth(self.token)
-
-
-HttpAuth: TypeAlias = Union[BasicAuth, BearerAuth, NoAuth]
-
-
-def parse_auth(d: dict | list) -> HttpAuth:
-    if isinstance(d, dict):
-        _type = d.pop("type")
-        if _type is None:
-            return NoAuth()
-        elif _type == "basic":
-            return BasicAuth(**d)
-        elif _type == "bearer":
-            return BearerAuth(**d)
-        else:
-            raise Exception(f"Unknown HttpAuth type {_type}")
-    elif isinstance(d, list):
-        _type = d.pop(0)
-        if _type is None:
-            return NoAuth()
-        elif _type == "basic":
-            return BasicAuth(*d)
-        elif _type == "bearer":
-            return BearerAuth(*d)
-        else:
-            raise Exception(f"Unknown HttpAuth type {_type}")
-    else:
-        raise Exception("HttpAuth parsing failed, expected list or dict")
