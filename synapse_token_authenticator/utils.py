@@ -69,7 +69,7 @@ class MetadataResource(resource.Resource):
     def __init__(self, resource: object) -> None:
         self.resource = resource
 
-    def render_GET(self, request):
+    def render_GET(self, request) -> bytes:
         request.setHeader(b"content-type", b"application/json")
         request.setHeader(b"access-control-allow-origin", b"*")
         return json.dumps(self.resource).encode("utf-8")

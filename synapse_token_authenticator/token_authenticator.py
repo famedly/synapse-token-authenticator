@@ -116,7 +116,7 @@ class TokenAuthenticator:
             self.organization_id = oidc_config.organization_id
             self.project_id = oidc_config.project_id
 
-        def render_GET(self, request):
+        def render_GET(self, request) -> bytes:
             request.setHeader(b"content-type", b"application/json")
             request.setHeader(b"access-control-allow-origin", b"*")
             return json.dumps(
@@ -132,7 +132,7 @@ class TokenAuthenticator:
         def __init__(self, keys: JWKSet):
             self.keys = keys.export(private_keys=False).encode("utf-8")
 
-        def render_GET(self, request):
+        def render_GET(self, request) -> bytes:
             request.setHeader(b"content-type", b"application/json")
             request.setHeader(b"access-control-allow-origin", b"*")
             return self.keys
