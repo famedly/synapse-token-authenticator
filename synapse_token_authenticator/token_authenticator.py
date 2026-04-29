@@ -46,12 +46,12 @@ logger = logging.getLogger(__name__)
 class TokenAuthenticator:
     __version__ = "0.13.1"
 
-    def __init__(self, config: dict, account_handler: ModuleApi):
-        self.api = account_handler
+    def __init__(self, config: TokenAuthenticatorConfig, module_api: ModuleApi) -> None:
+        self.api = module_api
+        self.config = config
 
         auth_checkers = {}
 
-        self.config: TokenAuthenticatorConfig = config
         if (jwt := getattr(self.config, "jwt", None)) is not None:
             if jwt.secret:
                 k = {
@@ -734,7 +734,7 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     @staticmethod
-    def parse_config(config: dict):
+    def parse_config(config: dict) -> TokenAuthenticatorConfig:
         return TokenAuthenticatorConfig(config)
 
     async def _add_user_email(self, user_id: str, email: str) -> None:
