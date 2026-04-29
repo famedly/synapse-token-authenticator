@@ -62,48 +62,48 @@ class TokenAuthenticator:
 
         auth_checkers = {}
 
-        if (jwt := getattr(self.config, "jwt", None)) is not None:
-            if jwt.secret:
+        if self.config.jwt:
+            if self.config.jwt.secret:
                 k = {
-                    "k": base64.urlsafe_b64encode(jwt.secret.encode("utf-8")).decode(
-                        "utf-8"
-                    ),
+                    "k": base64.urlsafe_b64encode(
+                        self.config.jwt.secret.encode("utf-8")
+                    ).decode("utf-8"),
                     "kty": "oct",
                 }
                 self.key = jwk.JWK(**k)
             else:
-                with open(jwt.keyfile) as f:
+                with open(self.config.jwt.keyfile) as f:
                     self.key = jwk.JWK.from_pem(f.read())
             auth_checkers[("com.famedly.login.token", ("token",))] = self.check_jwt_auth
 
-        if (oidc := getattr(self.config, "oidc", None)) is not None:
+        if self.config.oidc:
             auth_checkers[("com.famedly.login.token.oidc", ("token",))] = (
                 self.check_oidc_auth
             )
 
             self.api.register_web_resource(
                 "/_famedly/login/com.famedly.login.token.oidc",
-                LoginMetadataResource(oidc),
+                LoginMetadataResource(self.config.oidc),
             )
 
-        if (cfg := getattr(self.config, "oauth", None)) is not None:
-            if cfg.expose_metadata_resource:
-                resource_name = cfg.expose_metadata_resource["name"]
+        if self.config.oauth:
+            if self.config.oauth.expose_metadata_resource:
+                resource_name = self.config.oauth.expose_metadata_resource["name"]
                 self.api.register_web_resource(
                     f"/_famedly/login/{resource_name}",
-                    MetadataResource(cfg.expose_metadata_resource),
+                    MetadataResource(self.config.oauth.expose_metadata_resource),
                 )
 
             auth_checkers[("com.famedly.login.token.oauth", ("token",))] = (
                 self.check_oauth
             )
 
-        if (cfg := getattr(self.config, "epa", None)) is not None:
-            if cfg.expose_metadata_resource:
-                resource_name = cfg.expose_metadata_resource["name"]
+        if self.config.epa:
+            if self.config.epa.expose_metadata_resource:
+                resource_name = self.config.epa.expose_metadata_resource["name"]
                 self.api.register_web_resource(
                     f"/_famedly/login/{resource_name}",
-                    MetadataResource(cfg.expose_metadata_resource),
+                    MetadataResource(self.config.epa.expose_metadata_resource),
                 )
 
             # Registers the encryption public keys
