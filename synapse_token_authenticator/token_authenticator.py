@@ -17,8 +17,8 @@ from __future__ import annotations
 import base64
 import logging
 import re
-from collections.abc import Awaitable
-from typing import Callable, TypeAlias
+from collections.abc import Awaitable, Callable
+from typing import TypeAlias
 
 import synapse
 from jwcrypto import jwk, jwt
@@ -60,7 +60,10 @@ class TokenAuthenticator:
         self.api = module_api
         self.config = config
 
-        auth_checkers = {}
+        auth_checkers: dict[
+            tuple[str, tuple[str, ...]],
+            Callable[[str, str, JsonDict], Awaitable[TypeTokenAuthReturn | None]],
+        ] = {}
 
         if self.config.jwt:
             if self.config.jwt.secret:
