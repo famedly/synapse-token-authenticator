@@ -214,7 +214,12 @@ def get_jwe_token(
         "typ": "JWE",
         "kid": enc_key.key_id,
     }
-    jwetoken = jwe.JWE(token, recipient=enc_key.public(), protected=protected_header)
+    # The recipient kwarg is mistyped in type-sched. It should be `JWK | None` and is
+    # instead labeled as a `str | None`. The `public()` function is correct so this will
+    # be ignored.
+    jwetoken = jwe.JWE(
+        token, recipient=enc_key.public(), protected=json.dumps(protected_header)  # type: ignore[arg-type]
+    )
 
     return jwetoken.serialize(True)
 
