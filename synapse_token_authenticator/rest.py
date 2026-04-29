@@ -9,6 +9,7 @@ from synapse_token_authenticator.config import OIDCConfig
 
 class LoginMetadataResource(resource.Resource):
     def __init__(self, oidc_config: OIDCConfig):
+        super().__init__()
         self.issuer = oidc_config.issuer
         self.metadata_url = urljoin(
             oidc_config.issuer, "/.well-known/openid-configuration"
@@ -31,6 +32,7 @@ class LoginMetadataResource(resource.Resource):
 
 class PublicKeysResource(resource.Resource):
     def __init__(self, keys: JWKSet):
+        super().__init__()
         self.keys = keys.export(private_keys=False).encode("utf-8")
 
     def render_GET(self, request) -> bytes:
@@ -41,6 +43,7 @@ class PublicKeysResource(resource.Resource):
 
 class MetadataResource(resource.Resource):
     def __init__(self, resource: object) -> None:
+        super().__init__()
         self.resource = resource
 
     def render_GET(self, request) -> bytes:
