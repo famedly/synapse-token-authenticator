@@ -252,26 +252,26 @@ class BearerAuth:
 HttpAuth: TypeAlias = Union[BasicAuth, BearerAuth, NoAuth]
 
 
-def parse_auth(d: dict) -> HttpAuth:
+def parse_auth(d: dict | list) -> HttpAuth:
     if isinstance(d, dict):
-        type = d.pop("type")
-        if type is None:
+        _type = d.pop("type")
+        if _type is None:
             return NoAuth()
-        elif type == "basic":
+        elif _type == "basic":
             return BasicAuth(**d)
-        elif type == "bearer":
+        elif _type == "bearer":
             return BearerAuth(**d)
         else:
-            raise Exception(f"Unknown HttpAuth type {type}")
+            raise Exception(f"Unknown HttpAuth type {_type}")
     elif isinstance(d, list):
-        type = d.pop(0)
-        if type is None:
+        _type = d.pop(0)
+        if _type is None:
             return NoAuth()
-        elif type == "basic":
+        elif _type == "basic":
             return BasicAuth(*d)
-        elif type == "bearer":
+        elif _type == "bearer":
             return BearerAuth(*d)
         else:
-            raise Exception(f"Unknown HttpAuth type {type}")
+            raise Exception(f"Unknown HttpAuth type {_type}")
     else:
         raise Exception("HttpAuth parsing failed, expected list or dict")
