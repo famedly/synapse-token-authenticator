@@ -33,6 +33,9 @@ from tests.test_utils import FakeResponse as Response
 admins = {}
 logger = logging.getLogger(__name__)
 ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
+# secrets for token generation need to be 64 chars long, as it needs to have 512 bits
+# since HS512 is used by default. The word 'jwcrypto' is 8 letters long. Perfect.
+_DEFAULT_TOKEN_SECRET = "jwcrypto" * 8
 
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
@@ -110,7 +113,7 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                 {
                     "module": "synapse_token_authenticator.TokenAuthenticator",
                     "config": {
-                        "jwt": {"secret": "foxies"},
+                        "jwt": {"secret": _DEFAULT_TOKEN_SECRET},
                         "oidc": {
                             "issuer": "https://idp.example.test",
                             "client_id": "1111@project",
@@ -146,7 +149,7 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
         return conf
 
 
-def get_jwk(secret="foxies", id="123456") -> jwk.JWK:
+def get_jwk(secret=_DEFAULT_TOKEN_SECRET, id="123456") -> jwk.JWK:
     return jwk.JWK(
         k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
         kty="oct",
@@ -161,7 +164,7 @@ def get_enc_jwk() -> jwk.JWK:
 def get_jwt_token(
     username,
     exp_in=None,
-    secret="foxies",
+    secret=_DEFAULT_TOKEN_SECRET,
     algorithm="HS512",
     admin=None,
     claims=None,
@@ -192,7 +195,7 @@ def get_jwt_token(
 def get_jwe_token(
     username,
     exp_in=None,
-    secret="foxies",
+    secret=_DEFAULT_TOKEN_SECRET,
     algorithm="HS512",
     admin=None,
     claims=None,

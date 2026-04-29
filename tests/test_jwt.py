@@ -17,7 +17,7 @@ from unittest import mock
 
 import tests.unittest as synapsetest
 
-from . import ModuleApiTestCase, get_jwt_token
+from . import _DEFAULT_TOKEN_SECRET, ModuleApiTestCase, get_jwt_token
 
 
 class JWTTests(ModuleApiTestCase):
@@ -41,7 +41,9 @@ class JWTTests(ModuleApiTestCase):
         self.assertEqual(result, None)
 
     async def test_token_wrong_secret(self):
-        token = get_jwt_token("alice", secret="wrong secret")
+        # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
+        secret = "wrong secret1234" * 4
+        token = get_jwt_token("alice", secret=secret)
         result = await self.hs.mockmod.check_jwt_auth(
             "alice", "com.famedly.login.token", {"token": token}
         )
@@ -75,7 +77,7 @@ class JWTTests(ModuleApiTestCase):
                     "module": "synapse_token_authenticator.TokenAuthenticator",
                     "config": {
                         "jwt": {
-                            "secret": "foxies",
+                            "secret": _DEFAULT_TOKEN_SECRET,
                             "require_expiry": False,
                         }
                     },
@@ -134,7 +136,7 @@ class JWTTests(ModuleApiTestCase):
                     "module": "synapse_token_authenticator.TokenAuthenticator",
                     "config": {
                         "jwt": {
-                            "secret": "foxies",
+                            "secret": _DEFAULT_TOKEN_SECRET,
                             "allow_registration": True,
                         },
                     },
