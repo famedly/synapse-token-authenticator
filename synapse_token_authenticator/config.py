@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, List, Literal, TypeAlias, Union
 
 from jwcrypto.jwk import JWK, JWKSet
+from synapse.types import JsonDict
 
 from synapse_token_authenticator.auth_headers import HttpAuth, NoAuth, parse_auth
 from synapse_token_authenticator.claims_validator import (
@@ -182,26 +183,30 @@ class TokenAuthenticatorConfig:
     Parses and validates the provided config dictionary.
     """
 
-    def __init__(self, other: dict) -> None:
-        if jwt := other.get("jwt"):
+    jwt: JwtConfig | None = None
+    oidc: OIDCConfig | None = None
+    oauth: OAuthConfig | None = None
+    epa: EPaConfig | None = None
 
+    def __init__(self, other: JsonDict) -> None:
+        # Walrus operators judge the value as truthy/falsey, not as strictly
+        # None/not-None. An empty container(like a dict) is considered falsey.
+        if jwt := other.get("jwt", {}):
             self.jwt = JwtConfig(jwt)
+        if self.jwt:
             verify_jwt_based_cfg(self.jwt)
 
-        if oidc := other.get("oidc"):
-
+        if oidc := other.get("oidc", {}):
             self.oidc = OIDCConfig(oidc)
 
-        if config := other.get("oauth"):
-
+        if config := other.get("oauth", {}):
             self.oauth = OAuthConfig(**config)
 
-        if epa := other.get("epa"):
-
+        if epa := other.get("epa", {}):
             self.epa = EPaConfig(**epa)
 
 
-def verify_jwt_based_cfg(cfg) -> None:
+def verify_jwt_based_cfg(cfg: JwtConfig) -> None:
     if cfg.secret is None and cfg.keyfile is None:
         raise Exception("Missing secret or keyfile")
     if cfg.keyfile is not None and not os.path.exists(cfg.keyfile):
