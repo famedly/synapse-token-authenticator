@@ -89,11 +89,13 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
     def prepare(
         self, reactor: MemoryReactor, clock: Clock, homeserver: HomeServer
     ) -> None:
+        super().prepare(reactor, clock, homeserver)
         self.store = homeserver.get_datastores().main
         self.module_api = homeserver.get_module_api()
         self.event_creation_handler = homeserver.get_event_creation_handler()
         self.sync_handler = homeserver.get_sync_handler()
         self.auth_handler = homeserver.get_auth_handler()
+        self.token_authenticator = homeserver.mockmod  # type: ignore[attr-defined]
 
     @override
     def make_homeserver(self, reactor: MemoryReactor, clock: Clock) -> HomeServer:
