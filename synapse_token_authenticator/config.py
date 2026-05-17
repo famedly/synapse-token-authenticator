@@ -60,7 +60,6 @@ class TokenAuthenticatorConfig:
         if config := other.get("oauth"):
 
             Path: TypeAlias = Union[str, List[str]]
-            PathList: TypeAlias = Union[Path, List[List[str]]]
 
             @dataclass
             class JwtValidationConfig:
@@ -70,7 +69,7 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
-                admin_path: PathList | None = None
+                admin_validator: Validator | None = None
                 email_path: Path | None = None
                 required_scopes: str | List[str] | None = None
                 jwk_set: JWKSet | JWK | None = None
@@ -80,6 +79,9 @@ class TokenAuthenticatorConfig:
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
+
+                    if self.admin_validator is not None:
+                        self.admin_validator = parse_validator(self.admin_validator)
 
                     if self.jwk_set and ("keys" in self.jwk_set):
                         self.jwk_set = JWKSet(**self.jwk_set)
@@ -100,13 +102,16 @@ class TokenAuthenticatorConfig:
                 user_id_path: Path | None = None
                 fq_uid_path: Path | None = None
                 displayname_path: Path | None = None
-                admin_path: PathList | None = None
+                admin_validator: Validator | None = None
                 email_path: Path | None = None
                 required_scopes: str | List[str] | None = None
 
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
+
+                    if self.admin_validator is not None:
+                        self.admin_validator = parse_validator(self.admin_validator)
 
                     if not isinstance(self.auth, NoAuth):
                         self.auth = parse_auth(self.auth)
@@ -122,6 +127,11 @@ class TokenAuthenticatorConfig:
                         self.auth = parse_auth(self.auth)
 
             @dataclass
+            class OAuthSysadminConfig:
+                external_id: str
+                issuer: str
+
+            @dataclass
             class OAuthConfig:
                 jwt_validation: JwtValidationConfig | None = None
                 introspection_validation: IntrospectionValidationConfig | None = None
@@ -130,8 +140,18 @@ class TokenAuthenticatorConfig:
                 expose_metadata_resource: Any = None
                 registration_enabled: bool = False
                 check_external_id: bool = True
+                sysadmins: List[OAuthSysadminConfig] | None = None
 
                 def __post_init__(self):
+                    if self.sysadmins:
+                        self.sysadmins = [
+                            (
+                                OAuthSysadminConfig(**entry)
+                                if isinstance(entry, dict)
+                                else entry
+                            )
+                            for entry in self.sysadmins
+                        ]
                     if self.notify_on_registration:
                         self.notify_on_registration = NotifyOnRegistration(
                             **self.notify_on_registration
