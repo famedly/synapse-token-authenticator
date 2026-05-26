@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@c8813ba1bc76ebf779b911ad8ffccbf2e449cb48
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -40,7 +40,7 @@ jobs:
           python -m pip install hatch
 
       - name: Formatting
-        uses: famedly/black@stable
+        uses: famedly/black@6af7d1109693c4ad3af08ecbc34649c232b47a6d
         with:
           options: "--check --verbose"
 
