@@ -86,7 +86,7 @@ def parse_validator(d: dict | list) -> Validator:
 
 @dataclass
 class Exist:
-    def validate(self, x: Any) -> bool:
+    def validate(self, _: Any) -> bool:
         return True
 
 
