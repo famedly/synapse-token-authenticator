@@ -35,6 +35,7 @@ Issues = "https://github.com/famedly/synapse-token-authenticator/issues"
 Source = "https://github.com/famedly/synapse-token-authenticator"
 
 [tool.hatch.envs.default]
+installer = "uv"
 dependencies = [
   "black",
   "pytest",
