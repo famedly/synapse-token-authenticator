@@ -6,3 +6,5 @@ venv
 dist
 .coverage
 .idea
+
+/.coverage.*
