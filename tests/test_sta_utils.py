@@ -1,3 +1,5 @@
+import pytest
+
 from synapse_token_authenticator.utils import (
     all_list_elems_are_equal_return_the_elem,
     get_path_in_dict,
@@ -114,8 +116,5 @@ def test_all_list_elems_are_equal_return_the_elem():
     assert all_list_elems_are_equal_return_the_elem([None, 3]) == 3
     assert all_list_elems_are_equal_return_the_elem([3, 3]) == 3
     assert all_list_elems_are_equal_return_the_elem([3]) == 3
-    try:
+    with pytest.raises(Exception):
         all_list_elems_are_equal_return_the_elem([3, 4])
-        assert False
-    except Exception:
-        assert True

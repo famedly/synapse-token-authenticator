@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from typing import Any, List, Literal, TypeAlias, Union
+from typing import Any, Literal, TypeAlias
 
 from jwcrypto.jwk import JWK, JWKSet
 
@@ -10,6 +10,23 @@ from synapse_token_authenticator.claims_validator import (
     parse_validator,
 )
 from synapse_token_authenticator.utils import basic_auth, bearer_auth
+
+
+class OIDCConfig:
+    def __init__(self, other: dict):
+        try:
+            self.issuer: str = other["issuer"]
+            self.client_id: str = other["client_id"]
+            self.client_secret: str = other["client_secret"]
+            self.project_id: str = other["project_id"]
+            self.organization_id: str = other["organization_id"]
+        except KeyError as error:
+            error_msg = f"Config option must be set: {error.args[0]}"
+            raise Exception(error_msg) from error
+
+        self.allowed_client_ids: str | None = other.get("allowed_client_ids")
+
+        self.allow_registration: bool = other.get("allow_registration", False)
 
 
 class TokenAuthenticatorConfig:
@@ -35,32 +52,11 @@ class TokenAuthenticatorConfig:
             verify_jwt_based_cfg(self.jwt)
 
         if oidc := other.get("oidc"):
-
-            class OIDCConfig:
-                def __init__(self, other: dict):
-                    try:
-                        self.issuer: str = other["issuer"]
-                        self.client_id: str = other["client_id"]
-                        self.client_secret: str = other["client_secret"]
-                        self.project_id: str = other["project_id"]
-                        self.organization_id: str = other["organization_id"]
-                    except KeyError as error:
-                        raise Exception(f"Config option must be set: {error.args[0]}")
-
-                    self.allowed_client_ids: str | None = other.get(
-                        "allowed_client_ids"
-                    )
-
-                    self.allow_registration: bool = other.get(
-                        "allow_registration", False
-                    )
-
             self.oidc = OIDCConfig(oidc)
 
         if config := other.get("oauth"):
-
-            Path: TypeAlias = Union[str, List[str]]
-            PathList: TypeAlias = Union[Path, List[List[str]]]
+            Path: TypeAlias = str | list[str]
+            PathList: TypeAlias = Path | list[list[str]]
 
             @dataclass
             class JwtValidationConfig:
@@ -72,7 +68,7 @@ class TokenAuthenticatorConfig:
                 displayname_path: Path | None = None
                 admin_path: PathList | None = None
                 email_path: Path | None = None
-                required_scopes: str | List[str] | None = None
+                required_scopes: str | list[str] | None = None
                 jwk_set: JWKSet | JWK | None = None
                 jwk_file: str | None = None
                 jwks_endpoint: str | None = None
@@ -89,7 +85,8 @@ class TokenAuthenticatorConfig:
                         with open(self.jwk_file) as f:
                             self.jwk_set = JWK.from_pem(f.read())
                     elif not self.jwks_endpoint:
-                        raise Exception("No JWK")
+                        error_msg = "No JWK"
+                        raise Exception(error_msg)
 
             @dataclass
             class IntrospectionValidationConfig:
@@ -102,7 +99,7 @@ class TokenAuthenticatorConfig:
                 displayname_path: Path | None = None
                 admin_path: PathList | None = None
                 email_path: Path | None = None
-                required_scopes: str | List[str] | None = None
+                required_scopes: str | list[str] | None = None
 
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
@@ -145,16 +142,16 @@ class TokenAuthenticatorConfig:
                             **self.introspection_validation
                         )
                     if not (self.jwt_validation or self.introspection_validation):
-                        raise Exception(
-                            "Neither jwt_validation nor introspection_validation was specified"
-                        )
+                        error_msg = "Neither jwt_validation nor introspection_validation was specified"
+                        raise Exception(error_msg)
                     if self.username_type not in [
                         "fq_uid",
                         "localpart",
                         "user_id",
                         None,
                     ]:
-                        raise Exception(f"Unknown username_type {self.username_type}")
+                        error_msg = f"Unknown username_type {self.username_type}"
+                        raise Exception(error_msg)
 
             self.oauth = OAuthConfig(**config)
 
@@ -187,7 +184,8 @@ class TokenAuthenticatorConfig:
                         with open(self.enc_jwk_file) as f:
                             self.enc_jwk = JWK.from_pem(f.read())
                     else:
-                        raise Exception("No encryption JWK")
+                        error_msg = "No encryption JWK"
+                        raise Exception(error_msg)
 
                     if self.jwk_set and ("keys" in self.jwk_set):
                         self.jwk_set = JWKSet(**self.jwk_set)
@@ -197,16 +195,19 @@ class TokenAuthenticatorConfig:
                         with open(self.jwk_file) as f:
                             self.jwk_set = JWK.from_pem(f.read())
                     elif not self.jwks_endpoint:
-                        raise Exception("No JWK")
+                        error_msg = "No JWK"
+                        raise Exception(error_msg)
 
             self.epa = EPaConfig(**epa)
 
 
 def verify_jwt_based_cfg(cfg):
     if cfg.secret is None and cfg.keyfile is None:
-        raise Exception("Missing secret or keyfile")
+        error_msg = "Missing secret or keyfile"
+        raise Exception(error_msg)
     if cfg.keyfile is not None and not os.path.exists(cfg.keyfile):
-        raise Exception("Keyfile doesn't exist")
+        error_msg = "Keyfile doesn't exist"
+        raise Exception(error_msg)
 
     if cfg.algorithm not in [
         "HS256",
@@ -223,7 +224,8 @@ def verify_jwt_based_cfg(cfg):
         "PS512",
         "EdDSA",
     ]:
-        raise Exception(f"Unknown algorithm: '{cfg.algorithm}'")
+        error_msg = f"Unknown algorithm: '{cfg.algorithm}'"
+        raise Exception(error_msg)
 
 
 @dataclass
@@ -249,29 +251,28 @@ class BearerAuth:
         return bearer_auth(self.token)
 
 
-HttpAuth: TypeAlias = Union[BasicAuth, BearerAuth, NoAuth]
+HttpAuth: TypeAlias = BasicAuth | BearerAuth | NoAuth
 
 
-def parse_auth(d: dict) -> HttpAuth:
+def parse_auth(d: dict | list) -> HttpAuth:
     if isinstance(d, dict):
-        type = d.pop("type")
-        if type is None:
+        auth_type = d.pop("type")
+        if auth_type is None:
             return NoAuth()
-        elif type == "basic":
+        if auth_type == "basic":
             return BasicAuth(**d)
-        elif type == "bearer":
+        if auth_type == "bearer":
             return BearerAuth(**d)
-        else:
-            raise Exception(f"Unknown HttpAuth type {type}")
-    elif isinstance(d, list):
-        type = d.pop(0)
-        if type is None:
+        error = f"Unknown HttpAuth type {auth_type}"
+        raise Exception(error)
+    if isinstance(d, list):
+        auth_type = d.pop(0)
+        if auth_type is None:
             return NoAuth()
-        elif type == "basic":
+        if auth_type == "basic":
             return BasicAuth(*d)
-        elif type == "bearer":
+        if auth_type == "bearer":
             return BearerAuth(*d)
-        else:
-            raise Exception(f"Unknown HttpAuth type {type}")
-    else:
-        raise Exception("HttpAuth parsing failed, expected list or dict")
+        error = f"Unknown HttpAuth type {auth_type}"
+        raise Exception(error)
+    raise Exception("HttpAuth parsing failed, expected list or dict")

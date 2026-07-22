@@ -16,9 +16,11 @@ Current solution:
    more complicated, we better switch to another engine/DSL
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from typing import Any, List, Optional, TypeAlias, Union
+from typing import Any, TypeAlias, Union
 
 from synapse_token_authenticator.utils import get_path_in_dict
 
@@ -35,53 +37,52 @@ Validator: TypeAlias = Union[
 ]
 
 
-def parse_validator(d: dict) -> Validator:
+def parse_validator(d: dict | list) -> Validator:
     if isinstance(d, dict):
-        type = d.pop("type")
-        if type == "exist":
+        val_type = d.pop("type")
+        if val_type == "exist":
             return Exist(**d)
-        elif type == "not":
+        if val_type == "not":
             return Not(**d)
-        elif type == "equal":
+        if val_type == "equal":
             return Equal(**d)
-        elif type == "regex":
+        if val_type == "regex":
             return MatchesRegex(**d)
-        elif type == "any_of":
+        if val_type == "any_of":
             return AnyOf(**d)
-        elif type == "all_of":
+        if val_type == "all_of":
             return AllOf(**d)
-        elif type == "in":
+        if val_type == "in":
             return In(**d)
-        elif type == "list_any_of":
+        if val_type == "list_any_of":
             return ListAnyOf(**d)
-        elif type == "list_all_of":
+        if val_type == "list_all_of":
             return ListAllOf(**d)
-        else:
-            raise Exception(f"Unknown validator type {type}")
-    elif isinstance(d, list):
-        type = d.pop(0)
-        if type == "exist":
+        error = f"Unknown validator type {val_type}"
+        raise Exception(error)
+    if isinstance(d, list):
+        val_type = d.pop(0)
+        if val_type == "exist":
             return Exist(*d)
-        elif type == "not":
+        if val_type == "not":
             return Not(*d)
-        elif type == "equal":
+        if val_type == "equal":
             return Equal(*d)
-        elif type == "regex":
+        if val_type == "regex":
             return MatchesRegex(*d)
-        elif type == "any_of":
+        if val_type == "any_of":
             return AnyOf(*d)
-        elif type == "all_of":
+        if val_type == "all_of":
             return AllOf(*d)
-        elif type == "in":
+        if val_type == "in":
             return In(*d)
-        elif type == "list_any_of":
+        if val_type == "list_any_of":
             return ListAnyOf(*d)
-        elif type == "list_all_of":
+        if val_type == "list_all_of":
             return ListAllOf(*d)
-        else:
-            raise Exception(f"Unknown validator type {type}")
-    else:
-        raise Exception("Validator parsing failed, expected list or dict")
+        error = f"Unknown validator type {val_type}"
+        raise Exception(error)
+    raise Exception("Validator parsing failed, expected list or dict")
 
 
 @dataclass
@@ -122,16 +123,15 @@ class MatchesRegex:
             return False
         if self.full_match:
             return bool(self.regex_prog.fullmatch(s))
-        else:
-            return bool(self.regex_prog.search(s))
+        return bool(self.regex_prog.search(s))
 
 
 @dataclass
 class AnyOf:
-    validators: List[Validator]
+    validators: list[Validator]
 
     def __post_init__(self):
-        self.validators = list(map(lambda v: parse_validator(v), self.validators))
+        self.validators = [parse_validator(v) for v in self.validators]
 
     def validate(self, x: Any) -> bool:
         return any(v.validate(x) for v in self.validators)
@@ -139,10 +139,10 @@ class AnyOf:
 
 @dataclass
 class AllOf:
-    validators: List[Validator]
+    validators: list[Validator]
 
     def __post_init__(self):
-        self.validators = list(map(lambda v: parse_validator(v), self.validators))
+        self.validators = [parse_validator(v) for v in self.validators]
 
     def validate(self, x: Any) -> bool:
         return all(v.validate(x) for v in self.validators)
@@ -150,12 +150,13 @@ class AllOf:
 
 @dataclass
 class In:
-    path: str | List[str]
-    validator: Optional[Validator] = None
+    path: str | list[str]
+    validator: Validator | None = None
 
     def __post_init__(self):
         if not self.path:
-            raise Exception("Path list is empty")
+            error = "Path list is empty"
+            raise Exception(error)
         if self.validator:
             self.validator = parse_validator(self.validator)
 

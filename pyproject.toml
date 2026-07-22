@@ -72,7 +72,8 @@ dependencies = [
   "types-cachetools",
   "types-jwcrypto",
   "types-requests",
-  "types-pyOpenSSL"
+  "types-pyOpenSSL",
+  "attrs"
 ]
 
 [tool.hatch.envs.hatch-static-analysis.scripts]
@@ -93,11 +94,35 @@ lint-fix = [
   "ruff check --fix"
 ]
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 88
 
+[tool.ruff.lint]
+ignore = [
+  "ARG002", # Unused method argument
+  "FBT001", # Boolean-typed positional argument in function definition
+  "FBT002", # Boolean default positional argument in function definition
+  "N802", # Function name should be lowercase
+  "N803", # Argument name should be lowercase
+  "TRY002", # Create your own exception
+  "SLF001", # Private member accessed
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+  "ARG001", # Unused function argument
+  "B017", # Do not assert blind exception
+  "BLE001", # Do not catch blind exception
+  "PLC0415", # `import` should be at the top-level of a file
+  "PLR2004", # Magic value used in comparison, consider replacing with a constant variable
+  "PLW0603", # Using the global statement to update is discouraged
+  "PT011", # `pytest.raises(Exception)` is too broad, set the `match` parameter or use a more specific exception
+  "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+  "S101", # Use of `assert` detected
+  ]
+
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 ignore_missing_imports = true
 install_types = true
 plugins = [
@@ -108,6 +133,13 @@ files = ["synapse_token_authenticator", "tests"]
 [tool.isort]
 profile = "black"
 src_paths = ["synapse_token_authenticator", "tests"]
+
+[tool.black]
+target-version = [
+  "py311",
+  "py312",
+  "py313"
+]
 
 [tool.hatch.envs.hatch-test]
 # These below are installed by default. This list is to help not reinstall something.

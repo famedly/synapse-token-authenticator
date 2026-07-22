@@ -16,8 +16,9 @@ import base64
 import json
 import logging
 import re
-from collections.abc import Awaitable
-from typing import Callable, List, Optional, Tuple
+from collections.abc import Awaitable, Callable
+from http import HTTPStatus
+from typing import Any
 from urllib.parse import urljoin
 
 import synapse
@@ -30,7 +31,7 @@ from synapse.types import UserID
 from twisted.internet import defer
 from twisted.web import resource
 
-from synapse_token_authenticator.config import TokenAuthenticatorConfig
+from synapse_token_authenticator.config import OIDCConfig, TokenAuthenticatorConfig
 from synapse_token_authenticator.utils import (
     MetadataResource,
     all_list_elems_are_equal_return_the_elem,
@@ -47,12 +48,12 @@ logger = logging.getLogger(__name__)
 class TokenAuthenticator:
     __version__ = "0.13.1"
 
-    def __init__(self, config: dict, account_handler: ModuleApi):
-        self.api = account_handler
+    def __init__(self, config: TokenAuthenticatorConfig, module_api: ModuleApi):
+        self.api = module_api
 
-        auth_checkers = {}
+        auth_checkers: dict[tuple[str, tuple[str, ...]], Any] = {}
 
-        self.config: TokenAuthenticatorConfig = config
+        self.config = config
         if (jwt := getattr(self.config, "jwt", None)) is not None:
             if jwt.secret:
                 k = {
@@ -63,7 +64,7 @@ class TokenAuthenticator:
                 }
                 self.key = jwk.JWK(**k)
             else:
-                with open(jwt.keyfile) as f:
+                with open(jwt.keyfile, "rb") as f:
                     self.key = jwk.JWK.from_pem(f.read())
             auth_checkers[("com.famedly.login.token", ("token",))] = self.check_jwt_auth
 
@@ -99,9 +100,9 @@ class TokenAuthenticator:
 
             # Registers the encryption public keys
             keys = JWKSet()
-            keys.add(self.config.epa.enc_jwk)
+            keys.add(cfg.enc_jwk)
             self.api.register_web_resource(
-                self.config.epa.enc_jwks_endpoint, self.PublicKeysResource(keys)
+                cfg.enc_jwks_endpoint, self.PublicKeysResource(keys)
             )
 
             auth_checkers[("com.famedly.login.token.epa", ("token",))] = self.check_epa
@@ -109,7 +110,7 @@ class TokenAuthenticator:
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
     class LoginMetadataResource(resource.Resource):
-        def __init__(self, oidc_config: object):
+        def __init__(self, oidc_config: OIDCConfig):
             self.issuer = oidc_config.issuer
             self.metadata_url = urljoin(
                 oidc_config.issuer, "/.well-known/openid-configuration"
@@ -140,12 +141,12 @@ class TokenAuthenticator:
 
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
-            str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
         ]
-    ]:
+        | None
+    ):
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
@@ -232,12 +233,12 @@ class TokenAuthenticator:
 
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
-            str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
         ]
-    ]:
+        | None
+    ):
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oidc":
             logger.info("Wrong login type")
@@ -261,11 +262,10 @@ class TokenAuthenticator:
                 headers=basic_auth(oidc.client_id, oidc.client_secret),
             )
         except HttpResponseException as e:
-            if e.code == 401:
+            if e.code == HTTPStatus.UNAUTHORIZED:
                 logger.info("User's access token is invalid")
                 return None
-            else:
-                raise e
+            raise
 
         if not introspection_resp["active"]:
             logger.info("User is not active")
@@ -274,18 +274,16 @@ class TokenAuthenticator:
         allowed_roles = ["User", "OrgAdmin"]
 
         if not any(
-            [
-                role in allowed_roles
-                for role in introspection_resp[
-                    f"urn:zitadel:iam:org:project:{oidc.project_id}:roles"
-                ]
+            role in allowed_roles
+            for role in introspection_resp[
+                f"urn:zitadel:iam:org:project:{oidc.project_id}:roles"
             ]
         ):
             logger.info("User does not have a role in this project")
             return None
 
         if introspection_resp["iss"] != oidc_metadata.issuer:
-            logger.info(f"Token issuer does not match: {introspection_resp['iss']}")
+            logger.info("Token issuer does not match: %s", introspection_resp["iss"])
             return None
 
         if (
@@ -293,7 +291,8 @@ class TokenAuthenticator:
             and introspection_resp["client_id"] not in oidc.allowed_client_ids
         ):
             logger.info(
-                f"Client {introspection_resp['client_id']} is not in the list of allowed clients"
+                "Client %s is not in the list of allowed clients",
+                introspection_resp["client_id"],
             )
             return None
 
@@ -321,12 +320,12 @@ class TokenAuthenticator:
 
     async def check_oauth(
         self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
-            str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
         ]
-    ]:
+        | None
+    ):
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -391,11 +390,10 @@ class TokenAuthenticator:
                     headers=config.introspection_validation.auth.header_map(),
                 )
             except HttpResponseException as e:
-                if e.code == 401:
+                if e.code == HTTPStatus.UNAUTHORIZED:
                     logger.info("Introspection auth failed")
                     return None
-                else:
-                    raise e
+                raise
 
             if config.introspection_validation.required_scopes:
                 provided_scope = introspection_claims.get("scope")
@@ -468,8 +466,8 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:
-            logger.info(e)
+        except Exception as e:  # noqa: BLE001
+            logger.info("%s", e)
             return None
 
         if localpart is None and fully_qualified_uid is None:
@@ -492,8 +490,8 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:
-            logger.info(e)
+        except Exception as e:  # noqa: BLE001
+            logger.info("%s", e)
             return None
 
         try:
@@ -506,8 +504,8 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:
-            logger.info(e)
+        except Exception as e:  # noqa: BLE001
+            logger.info("%s", e)
             return None
 
         try:
@@ -520,8 +518,8 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:
-            logger.info(e)
+        except Exception as e:  # noqa: BLE001
+            logger.info("%s", e)
             return None
 
         try:
@@ -531,7 +529,7 @@ class TokenAuthenticator:
                     get_path_in_dict("sub", introspection_claims),
                 ]
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.info(e)
             return None
         if not external_id:
@@ -545,7 +543,7 @@ class TokenAuthenticator:
                     get_path_in_dict("iss", introspection_claims),
                 ]
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.info(e)
             return None
         if not auth_provider:
@@ -580,12 +578,14 @@ class TokenAuthenticator:
 
             user_id = await self.api.register_user(localpart, admin=bool(admin))
             logger.debug(
-                f"User '{localpart}' created as '{'Admin' if bool(admin) else 'User'}'"
+                "User '%s' created as '{%s}'",
+                localpart,
+                "Admin" if bool(admin) else "User",
             )
 
             if email:
                 await self._add_user_email(user_id, email)
-                logger.debug(f"Added the email for the user '{localpart}'")
+                logger.debug("Added the email for the user '%s'", localpart)
 
             await self.api.record_user_external_id(
                 auth_provider_id=auth_provider,
@@ -603,15 +603,17 @@ class TokenAuthenticator:
             ):
                 logger.info("User didn't pass on the external id check")
                 logger.debug(
-                    f"The external_id '{external_id}' and auth_provider '{auth_provider}' don't match any of the user's stored external ids"
+                    "The external_id '%s' and auth_provider '%s' don't match any of the user's stored external ids",
+                    external_id,
+                    auth_provider,
                 )
                 return None
 
         if displayname:
-            user_id = UserID.from_string(fully_qualified_uid)
+            target_user = UserID.from_string(fully_qualified_uid)
             await self.api._hs.get_profile_handler().set_displayname(
-                requester=synapse.types.create_requester(user_id),
-                target_user=user_id,
+                requester=synapse.types.create_requester(target_user),
+                target_user=target_user,
                 by_admin=True,
                 new_displayname=displayname,
             )
@@ -621,12 +623,12 @@ class TokenAuthenticator:
 
     async def check_epa(
         self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> Optional[
+    ) -> (
         tuple[
-            str,
-            Optional[Callable[["synapse.module_api.LoginResponse"], Awaitable[None]]],
+            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
         ]
-    ]:
+        | None
+    ):
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
@@ -687,12 +689,21 @@ class TokenAuthenticator:
             return None
         if config.resource_id != jwt_claims["aud"]:
             logger.info(
-                f"Token has the wrong 'aud'. The expected value is '{config.resource_id}'"
+                "Token has the wrong 'aud'. The expected value is '%s'",
+                config.resource_id,
             )
             return None
 
-        localpart = get_path_in_dict(config.localpart_path, jwt_claims)
-        displayname = get_path_in_dict(config.displayname_path, jwt_claims)
+        localpart = (
+            get_path_in_dict(config.localpart_path, jwt_claims)
+            if config.localpart_path
+            else None
+        )
+        displayname = (
+            get_path_in_dict(config.displayname_path, jwt_claims)
+            if config.displayname_path
+            else None
+        )
 
         if not localpart:
             logger.info("Missing localpart")
@@ -716,13 +727,13 @@ class TokenAuthenticator:
         if not user_exists:
             logger.info("User doesn't exist, registering them...")
             await self.api.register_user(localpart)
-            logger.info(f"User '{localpart}' registered")
+            logger.info("User '%s' registered", localpart)
 
         if displayname:
-            user_id = UserID.from_string(fully_qualified_uid)
+            target_user = UserID.from_string(fully_qualified_uid)
             await self.api._hs.get_profile_handler().set_displayname(
-                requester=synapse.types.create_requester(user_id),
-                target_user=user_id,
+                requester=synapse.types.create_requester(target_user),
+                target_user=target_user,
                 by_admin=True,
                 new_displayname=displayname,
             )
@@ -743,7 +754,7 @@ class TokenAuthenticator:
 
     def _get_external_id(
         self, fully_qualified_uid: str
-    ) -> "defer.Deferred[List[Tuple[str, str]]]":
+    ) -> "defer.Deferred[list[tuple[str, str]]]":
         return defer.ensureDeferred(
             self.api._store.get_external_ids_by_user(fully_qualified_uid)
         )

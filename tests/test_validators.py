@@ -1,4 +1,4 @@
-from pytest import fixture
+import pytest
 
 from synapse_token_authenticator.claims_validator import parse_validator
 
@@ -78,7 +78,7 @@ def test_validator_list_any_of():
     )
 
 
-@fixture
+@pytest.fixture
 def jwt_claims():
     return {
         "foo": "hello",

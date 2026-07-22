@@ -1,6 +1,6 @@
 import json
 from base64 import b64encode
-from typing import Any, List, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 from twisted.web import resource
@@ -48,16 +48,23 @@ def all_list_elems_are_equal_return_the_elem(list_):
         return None
     val = filtered_list[0]
     if not all(i == val for i in filtered_list):
-        raise Exception(f"Elements in {filtered_list} are not equal")
+        msg = f"Elements in {filtered_list} are not equal"
+        raise Exception(msg)
     return val
 
 
-def get_path_in_dict(path: str | List[str] | List[List[str]], d: Any) -> Optional[Any]:
-    if isinstance(path, str):
-        path = [path]
-    if len(path) == 0 or isinstance(path[0], str):
-        path = [path]
-    for p in path:
+def get_path_in_dict(path: str | list[str] | list[list[str]], d: Any) -> Any | None:
+    # first make the path input either a list[str] or list[list[str]]
+    list_path: list[str] | list[list[str]] = [path] if isinstance(path, str) else path
+    # use the result to always generate a list[list[str]] type
+    if len(list_path) == 0 or isinstance(list_path[0], str):
+        normalized_path: list[list[str]] = [
+            [s for s in list_path if isinstance(s, str)]
+        ]
+    else:
+        normalized_path = [list(p) for p in list_path if isinstance(p, list)]
+
+    for p in normalized_path:
         r = d
         for segment in p:
             if not isinstance(r, dict):
@@ -69,7 +76,7 @@ def get_path_in_dict(path: str | List[str] | List[List[str]], d: Any) -> Optiona
     return None
 
 
-def validate_scopes(required_scopes: str | List[str], provided_scopes: str) -> bool:
+def validate_scopes(required_scopes: str | list[str], provided_scopes: str) -> bool:
     if isinstance(required_scopes, str):
         required_scopes = required_scopes.split()
     provided_scopes_list = provided_scopes.split()
