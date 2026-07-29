@@ -6,7 +6,7 @@ from synapse_token_authenticator.utils import (
 )
 
 
-def test_get_path_in_dict():
+def test_get_path_in_dict() -> None:
     assert get_path_in_dict("foo", {"foo": 3}) == 3
     assert get_path_in_dict("foo", {"loo": 3}) is None
     assert get_path_in_dict("foo", [3, 4]) is None
@@ -38,7 +38,7 @@ def test_get_path_in_dict():
     assert get_path_in_dict([["foo", "loo"], []], {"foo": {"loo": 3}}) == 3
 
 
-def test_get_path_in_dict_pathlist_fallback_on_missing_key():
+def test_get_path_in_dict_pathlist_fallback_on_missing_key() -> None:
     """When the first path's key is entirely absent, later paths must still be tried."""
     assert (
         get_path_in_dict([["missing", "sub"], ["foo", "bar"]], {"foo": {"bar": 3}}) == 3
@@ -54,7 +54,7 @@ def test_get_path_in_dict_pathlist_fallback_on_missing_key():
     )
 
 
-def test_get_path_in_dict_pathlist_non_dict_intermediate():
+def test_get_path_in_dict_pathlist_non_dict_intermediate() -> None:
     """When an intermediate value is a non-dict (e.g. int), later paths must still be tried."""
     assert (
         get_path_in_dict(
@@ -71,7 +71,7 @@ def test_get_path_in_dict_pathlist_non_dict_intermediate():
     )
 
 
-def test_get_path_in_dict_zitadel_admin_path():
+def test_get_path_in_dict_zitadel_admin_path() -> None:
     """Real-world scenario: Zitadel project-scoped role claims with PathList fallback."""
     token = {
         "urn:zitadel:iam:org:project:12345:roles": {
@@ -94,7 +94,7 @@ def test_get_path_in_dict_zitadel_admin_path():
     ) == {"org_id": "famedly.localhost"}
 
 
-def test_validate_scopes():
+def test_validate_scopes() -> None:
     assert validate_scopes("foo boo", "boo foo")
     assert validate_scopes(["foo", "boo"], "boo foo")
     assert not validate_scopes("foo boo", "foo")
@@ -102,12 +102,12 @@ def test_validate_scopes():
     assert validate_scopes("foo boo", "boo foo loo")
 
 
-def test_if_not_none():
+def test_if_not_none() -> None:
     assert if_not_none(lambda x: x + 1)(3) == 4
     assert if_not_none(lambda x: x + 1)(None) is None
 
 
-def test_all_list_elems_are_equal_return_the_elem():
+def test_all_list_elems_are_equal_return_the_elem() -> None:
     assert all_list_elems_are_equal_return_the_elem([None, None]) is None
     assert all_list_elems_are_equal_return_the_elem([]) is None
     assert all_list_elems_are_equal_return_the_elem([3, None]) == 3

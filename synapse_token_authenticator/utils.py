@@ -1,9 +1,5 @@
-import json
-from base64 import b64encode
 from typing import Any, List, Optional
 from urllib.parse import urljoin
-
-from twisted.web import resource
 
 
 class OpenIDProviderMetadata:
@@ -11,7 +7,7 @@ class OpenIDProviderMetadata:
     Wrapper around OpenID Provider Metadata values
     """
 
-    def __init__(self, issuer: str, configuration: dict):
+    def __init__(self, issuer: str, configuration: dict) -> None:
         self.issuer = issuer
         self.introspection_endpoint: str = configuration["introspection_endpoint"]
         self.jwks_uri: str = configuration["jwks_uri"]
@@ -25,17 +21,6 @@ async def get_oidp_metadata(issuer, client) -> OpenIDProviderMetadata:
         urljoin(issuer, ".well-known/openid-configuration"),
     )
     return OpenIDProviderMetadata(issuer, config)
-
-
-def basic_auth(username: str, password: str) -> dict[bytes, list[bytes]]:
-    authorization = b64encode(
-        b":".join((username.encode("utf8"), password.encode("utf8")))
-    )
-    return {b"Authorization": [b"Basic " + authorization]}
-
-
-def bearer_auth(token: str) -> dict[bytes, list[bytes]]:
-    return {b"Authorization": [b"Bearer " + token.encode("utf8")]}
 
 
 def if_not_none(f):
@@ -74,13 +59,3 @@ def validate_scopes(required_scopes: str | List[str], provided_scopes: str) -> b
         required_scopes = required_scopes.split()
     provided_scopes_list = provided_scopes.split()
     return all(scope in provided_scopes_list for scope in required_scopes)
-
-
-class MetadataResource(resource.Resource):
-    def __init__(self, resource: object):
-        self.resource = resource
-
-    def render_GET(self, request):
-        request.setHeader(b"content-type", b"application/json")
-        request.setHeader(b"access-control-allow-origin", b"*")
-        return json.dumps(self.resource).encode("utf-8")
