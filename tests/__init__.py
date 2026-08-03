@@ -30,7 +30,7 @@ from typing_extensions import override
 import tests.unittest as synapsetest
 from tests.test_utils import FakeResponse as Response
 
-admins = {}
+admins: dict[str, bool] = {}
 logger = logging.getLogger(__name__)
 ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
 # secrets for token generation need to be 64 chars long, as it needs to have 512 bits
@@ -149,11 +149,11 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
         return conf
 
 
-def get_jwk(secret=_DEFAULT_TOKEN_SECRET, id="123456") -> jwk.JWK:
+def get_jwk(secret=_DEFAULT_TOKEN_SECRET, id_="123456") -> jwk.JWK:
     return jwk.JWK(
         k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
         kty="oct",
-        kid=id,
+        kid=id_,
     )
 
 
@@ -168,10 +168,12 @@ def get_jwt_token(
     algorithm="HS512",
     admin=None,
     claims=None,
-    id="123456",
-    extra_headers: dict = {},
+    id_="123456",
+    extra_headers=None,
 ) -> str:
-    key = get_jwk(secret, id)
+    if extra_headers is None:
+        extra_headers = {}
+    key = get_jwk(secret, id_)
     if claims is None:
         claims = {}
     claims["sub"] = username
@@ -186,7 +188,7 @@ def get_jwt_token(
             claims["exp"] = int(time.time()) + exp_in
 
     token = jwt.JWT(
-        header={"alg": algorithm, "kid": id, **extra_headers}, claims=claims
+        header={"alg": algorithm, "kid": id_, **extra_headers}, claims=claims
     )
     token.make_signed_token(key)
     return token.serialize()
@@ -199,11 +201,13 @@ def get_jwe_token(
     algorithm="HS512",
     admin=None,
     claims=None,
-    id="123456",
-    extra_headers: dict = {"typ": "at+jwt"},
+    id_="123456",
+    extra_headers=None,
 ):
+    if extra_headers is None:
+        extra_headers = {"typ": "at+jwt"}
     token = get_jwt_token(
-        username, exp_in, secret, algorithm, admin, claims, id, extra_headers
+        username, exp_in, secret, algorithm, admin, claims, id_, extra_headers
     )
     enc_key = get_enc_jwk()
     protected_header = {
@@ -212,7 +216,8 @@ def get_jwe_token(
         "typ": "JWE",
         "kid": enc_key.key_id,
     }
-    jwetoken = jwe.JWE(token, recipient=enc_key.public(), protected=protected_header)
+    jwetoken = jwe.JWE(token, protected=json.dumps(protected_header))
+    jwetoken.add_recipient(enc_key.public())
 
     return jwetoken.serialize(True)
 
@@ -228,8 +233,7 @@ def get_oidc_login(username):
 def mock_idp_req(method, uri, data=None, **extrargs):
     if method == "GET":
         return mock_idp_get(uri, **extrargs)
-    else:
-        return mock_idp_post(uri, data, **extrargs)
+    return mock_idp_post(uri, data, **extrargs)
 
 
 def mock_idp_get(uri, **kwargs):
@@ -244,8 +248,7 @@ def mock_idp_get(uri, **kwargs):
                 "jwks_uri": f"{hostname}/oauth/v2/keys",
             }
         )
-    else:
-        return Response(code=404)
+    return Response(code=404)
 
 
 def mock_idp_post(uri, data_raw, **kwargs):
@@ -270,8 +273,7 @@ def mock_idp_post(uri, data_raw, **kwargs):
                 },
             }
         )
-    else:
-        return Response(code=404)
+    return Response(code=404)
 
 
 def mock_for_oauth(method, uri, data=None, **extrargs):
@@ -280,7 +282,7 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
         if "token" in data:
             pass
         else:
-            logger.error(f"Bad introspect request: {data}")
+            logger.error("Bad introspect request: %s", data)
             return Response(code=400)
         return Response.json(
             payload={
@@ -298,7 +300,7 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
                 "iss": "http://test.example",
             }
         )
-    elif (method, uri) == ("POST", "http://iop.test/notify"):
+    if (method, uri) == ("POST", "http://iop.test/notify"):
         data = json.loads(data)
         if (
             "localpart" in data
@@ -311,9 +313,8 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
                 "displayname": "Alice",
             }
         else:
-            logger.error(f"Bad notify request: {data}")
+            logger.error("Bad notify request: %s", data)
             return Response(code=400)
         return Response.json(payload=None)
-    else:
-        logger.error(f"Unknown request {method} {uri}")
-        return Response(code=404)
+    logger.error("Unknown request %s %s", method, uri)
+    return Response(code=404)

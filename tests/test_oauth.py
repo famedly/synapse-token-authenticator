@@ -17,10 +17,10 @@ from copy import deepcopy
 from unittest import mock
 
 from jwcrypto.jwk import JWKSet
+from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
-
-from . import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
+from tests import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
 
 default_claims = {
     "urn:messaging:matrix:localpart": "alice",
@@ -42,19 +42,19 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_missing_token(self):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_invalid_token(self):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": "invalid"}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_wrong_secret(self):
         # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
@@ -63,21 +63,21 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_expired(self):
         token = get_jwt_token("aliceid", exp_in=-60, claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_no_expiry(self):
         token = get_jwt_token("aliceid", exp_in=-1, claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_bad_localpart(self):
         claims = default_claims.copy()
@@ -86,7 +86,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_bad_mxid(self):
         claims = default_claims.copy()
@@ -95,16 +95,16 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_claims_username_mismatch(self):
         token = get_jwt_token("aliceid", claims=default_claims)
         result = await self.hs.mockmod.check_oauth(
             "bobby", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
-    config_for_jwt = {
+    config_for_jwt: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -134,7 +134,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     @synapsetest.override_config(config_for_jwt)
     @mock.patch(
@@ -147,7 +147,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch(
         "synapse_token_authenticator.TokenAuthenticator._get_external_id",
@@ -159,7 +159,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
     @mock.patch(
@@ -174,7 +174,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     async def test_invalid_scope(self):
         claims = default_claims.copy()
@@ -183,7 +183,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_jwt_jwks_url = deepcopy(config_for_jwt)
     config_for_jwt_jwks_url["modules"][0]["config"]["oauth"]["jwt_validation"].pop(
@@ -209,7 +209,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_jwt_admin_path = deepcopy(config_for_jwt)
     config_for_jwt_admin_path["modules"][0]["config"]["oauth"]["jwt_validation"][
@@ -236,7 +236,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
 
         register_user_mock.assert_called_with("alice", admin=True)
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_jwt_admin_paths = deepcopy(config_for_jwt)
     config_for_jwt_admin_paths["modules"][0]["config"]["oauth"]["jwt_validation"][
@@ -263,7 +263,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
 
         register_user_mock.assert_called_with("alice", admin=True)
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_jwt_admin_path_wrong = deepcopy(config_for_jwt_admin_path)
     config_for_jwt_admin_path_wrong["modules"][0]["config"]["oauth"]["jwt_validation"][
@@ -287,7 +287,7 @@ class CustomFlowTests(ModuleApiTestCase):
         )
 
         register_user_mock.assert_called_with("alice", admin=False)
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
     @mock.patch(
@@ -308,7 +308,7 @@ class CustomFlowTests(ModuleApiTestCase):
             remote_user_id="aliceid",
             registered_user_id="@alice:example.test",
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_jwt_email_path = deepcopy(config_for_jwt_admin_path)
     config_for_jwt_email_path["modules"][0]["config"]["oauth"]["jwt_validation"][
@@ -338,7 +338,7 @@ class CustomFlowTests(ModuleApiTestCase):
             "@alice:example.test",
             "alice@test.example",
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @synapsetest.override_config(config_for_jwt)
     @mock.patch(
@@ -354,7 +354,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @synapsetest.override_config(config_for_jwt)
     @mock.patch(
@@ -367,7 +367,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_external_id = deepcopy(config_for_jwt)
     config_for_external_id["modules"][0]["config"]["oauth"]["check_external_id"] = False
@@ -383,9 +383,9 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
-    config_for_introspection = {
+    config_for_introspection: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -421,7 +421,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_introspection_bad_notify_url = deepcopy(config_for_introspection)
     config_for_introspection_bad_notify_url["modules"][0]["config"]["oauth"][
@@ -438,7 +438,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_introspection_bad_notify_url_but_ok = deepcopy(
         config_for_introspection_bad_notify_url
@@ -461,7 +461,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_introspection_more_required_scopes = deepcopy(config_for_introspection)
     config_for_introspection_more_required_scopes["modules"][0]["config"]["oauth"][
@@ -479,7 +479,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oauth(
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_introspection_admin_path = deepcopy(config_for_introspection)
     config_for_introspection_admin_path["modules"][0]["config"]["oauth"][
@@ -502,7 +502,7 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         register_user_mock.assert_called_with("alice", admin=True)
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_introspection_admin_paths = deepcopy(config_for_introspection)
     config_for_introspection_admin_paths["modules"][0]["config"]["oauth"][
@@ -527,7 +527,7 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oauth", {"token": token}
         )
         register_user_mock.assert_called_with("alice", admin=True)
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
@@ -547,7 +547,7 @@ class CustomFlowTests(ModuleApiTestCase):
             remote_user_id="aliceid",
             registered_user_id="@alice:example.test",
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_introspection_email_path = deepcopy(config_for_introspection)
     config_for_introspection_email_path["modules"][0]["config"]["oauth"][
@@ -576,4 +576,4 @@ class CustomFlowTests(ModuleApiTestCase):
             "@alice:example.test",
             "alice@test.example",
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"

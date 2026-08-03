@@ -17,10 +17,10 @@ from copy import deepcopy
 from unittest import mock
 
 from jwcrypto import jwk
+from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
-
-from . import ModuleApiTestCase, get_enc_jwk, get_jwe_token, get_jwk, get_jwt_token
+from tests import ModuleApiTestCase, get_enc_jwk, get_jwe_token, get_jwk, get_jwt_token
 
 
 def get_default_claims() -> dict:
@@ -37,19 +37,19 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_missing_token(self):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_invalid_token(self):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": "invalid"}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_wrong_secret(self):
         # The secret needs to be 64 bytes, so pad it and bulk copy it. 16 * 4 = 64
@@ -58,35 +58,35 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_expired(self):
         token = get_jwe_token("alice", exp_in=-60, claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_no_expiry(self):
         token = get_jwe_token("alice", exp_in=-1, claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_username_ignored(self):
         token = get_jwe_token("alice", claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "dont_match", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     async def test_token_missing_typ(self):
         token = get_jwe_token("alice", claims=get_default_claims(), extra_headers={})
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_wrong_typ(self):
         token = get_jwe_token(
@@ -95,7 +95,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_missing_aud(self):
         claims = get_default_claims()
@@ -104,14 +104,14 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_login(self):
         token = get_jwe_token("alice", claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     async def test_login_alternative_typ(self):
         token = get_jwe_token(
@@ -122,7 +122,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     async def test_token_missing_jti(self):
         claims = get_default_claims()
@@ -131,16 +131,16 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_token_token_not_enc(self):
         token = get_jwt_token("alice", claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
-    config_for_epa = {
+    config_for_epa: JsonDict = {
         "modules": [
             {
                 "module": "synapse_token_authenticator.TokenAuthenticator",
@@ -168,7 +168,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_epa_wrong_aud = deepcopy(config_for_epa)
     config_for_epa_wrong_aud["modules"][0]["config"]["epa"]["resource_id"] = "wrong_aud"
@@ -179,7 +179,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     @mock.patch("synapse.module_api.ModuleApi.check_user_exists", return_value=False)
     async def test_valid_login_register(self, *args):
@@ -187,7 +187,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_epa_jwks_url = deepcopy(config_for_epa)
     config_for_epa_jwks_url["modules"][0]["config"]["epa"].pop("jwk_set")
@@ -206,7 +206,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     config_for_epa_reg_disabled = deepcopy(config_for_epa)
     config_for_epa_reg_disabled["modules"][0]["config"]["epa"][
@@ -220,7 +220,7 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     config_for_epa_lowercase = deepcopy(config_for_epa)
     config_for_epa_lowercase["modules"][0]["config"]["epa"][
@@ -233,11 +233,11 @@ class CustomFlowTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     async def test_localpart_not_lowercase(self):
         token = get_jwe_token("AlIcE", claims=get_default_claims())
         result = await self.hs.mockmod.check_epa(
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
-        self.assertEqual(result[0], "@AlIcE:example.test")
+        assert result[0] == "@AlIcE:example.test"

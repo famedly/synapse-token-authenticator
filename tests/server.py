@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ruff: noqa: ARG001 ARG002
 
 import hashlib
 import ipaddress
@@ -23,6 +22,7 @@ import sqlite3
 from collections import deque
 from collections.abc import Awaitable, Callable
 from typing import (
+    TYPE_CHECKING,
     Any,
     TypeVar,
     cast,
@@ -53,7 +53,6 @@ from twisted.internet.interfaces import (
     IReactorTime,
 )
 from twisted.internet.testing import MemoryReactorClock
-from twisted.python import threadpool
 from twisted.python.failure import Failure
 from typing_extensions import ParamSpec
 from zope.interface import implementer
@@ -71,6 +70,9 @@ P = ParamSpec("P")
 # A pre-prepared SQLite DB that is used as a template when creating new SQLite
 # DB each test run. This dramatically speeds up test set up when using SQLite.
 PREPPED_SQLITE_DB_CONN: LoggingDatabaseConnection | None = None
+
+if TYPE_CHECKING:
+    from twisted.python import threadpool
 
 
 # ISynapseReactor implies IReactorPluggableNameResolver, but explicitly
@@ -116,7 +118,7 @@ class ThreadedMemoryReactorClock(MemoryReactorClock):
 
     def getThreadPool(self) -> "threadpool.ThreadPool":
         # Cast to match super-class.
-        return cast(threadpool.ThreadPool, self.threadpool)
+        return cast("threadpool.ThreadPool", self.threadpool)
 
     def advance(self, amount: float) -> None:
         # first advance our reactor's time, and run any "callLater" callbacks that
@@ -180,7 +182,7 @@ def validate_connector(connector: tcp.Connector, expected_ip: str) -> None:
     if cls is not None:
         try:
             cls(expected_ip)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             msg = f"Invalid IP type and resolution for {destination}. Expected {expected_ip} to be {cls.__name__}"
             raise ValueError(msg) from exc
     else:
@@ -217,7 +219,7 @@ class ThreadPool:
             else:
                 onResult(True, res)
 
-        d: "Deferred[None]" = Deferred()
+        d: Deferred[None] = Deferred()
         d.addCallback(lambda _: function(*args, **kwargs))
         d.addBoth(_)
         self._reactor.callLater(0, d.callback, True)
@@ -302,7 +304,7 @@ def setup_test_homeserver(
     if reactor is None:
         from twisted.internet import reactor as _reactor
 
-        reactor = cast(ISynapseReactor, _reactor)
+        reactor = cast("ISynapseReactor", _reactor)
 
     if config is None:
         config = default_config(name, parse=True)
@@ -329,7 +331,7 @@ def setup_test_homeserver(
     }
 
     # Check if we have set up a DB that we can use as a template.
-    global PREPPED_SQLITE_DB_CONN
+    global PREPPED_SQLITE_DB_CONN  # PLW0603
     if PREPPED_SQLITE_DB_CONN is None:
         temp_engine = create_engine(database_config)
         PREPPED_SQLITE_DB_CONN = LoggingDatabaseConnection(
@@ -373,12 +375,12 @@ def setup_test_homeserver(
     # because AuthHandler's constructor requires the HS, so we can't make one
     # beforehand and pass it in to the HS's constructor (chicken / egg)
     async def _hash(p: str) -> str:
-        return hashlib.md5(p.encode("utf8")).hexdigest()
+        return hashlib.md5(p.encode("utf8"), usedforsecurity=False).hexdigest()
 
     hs.get_auth_handler().hash = _hash  # type: ignore[assignment]
 
     async def validate_hash(p: str, h: str) -> bool:
-        return hashlib.md5(p.encode("utf8")).hexdigest() == h
+        return hashlib.md5(p.encode("utf8"), usedforsecurity=False).hexdigest() == h
 
     hs.get_auth_handler().validate_hash = validate_hash  # type: ignore[assignment]
 

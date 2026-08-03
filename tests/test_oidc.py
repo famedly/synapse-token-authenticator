@@ -16,8 +16,7 @@
 from unittest import mock
 
 import tests.unittest as synapsetest
-
-from . import ModuleApiTestCase, get_oidc_login, mock_idp_req
+from tests import ModuleApiTestCase, get_oidc_login, mock_idp_req
 
 
 class OIDCTests(ModuleApiTestCase):
@@ -25,13 +24,13 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "m.password", get_oidc_login("alice")
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     async def test_missing_token(self):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token,oidc", {}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
@@ -40,7 +39,7 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", {"token": "invalid"}
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
@@ -49,7 +48,7 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
@@ -77,7 +76,7 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
@@ -87,7 +86,7 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
-        self.assertEqual(result, None)
+        assert result is None
 
     @mock.patch(
         "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
@@ -116,4 +115,4 @@ class OIDCTests(ModuleApiTestCase):
         result = await self.hs.mockmod.check_oidc_auth(
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
-        self.assertEqual(result[0], "@alice:example.test")
+        assert result[0] == "@alice:example.test"

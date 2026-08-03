@@ -39,19 +39,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install hatch
 
-      - name: Formatting
-        uses: famedly/black@stable
-        with:
-          options: "--check --verbose"
-
-      - name: Prepare lint
-        shell: bash
-        run: echo PYTHON_TARGET="py${{ matrix.python-version }}" | sed -r "s/\.//" >> $GITHUB_ENV
-
-      - name: Lint
-        uses: chartboost/ruff-action@491342200cdd1cf4d5132a30ddc546b3b5bc531b
-        with:
-          args: check --target-version ${{ env.PYTHON_TARGET }}
+      - name: Type checking and Formatting
+        run: hatch fmt --check
 
       - name: Tests and coverage
         run: hatch test -p -c
