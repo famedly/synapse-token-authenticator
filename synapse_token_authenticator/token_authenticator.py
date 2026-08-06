@@ -221,10 +221,8 @@ class TokenAuthenticator:
             await self.api.set_user_admin(user_id_str, payload["admin"])
 
         if "displayname" in payload:
-            await self.api._hs.get_profile_handler().set_displayname(
-                requester=synapse.types.create_requester(user_id),
-                target_user=user_id,
-                by_admin=True,
+            await self.api.set_displayname(
+                user_id=user_id,
                 new_displayname=payload["displayname"],
             )
 
@@ -611,10 +609,8 @@ class TokenAuthenticator:
 
         if displayname:
             target_user = UserID.from_string(fully_qualified_uid)
-            await self.api._hs.get_profile_handler().set_displayname(
-                requester=synapse.types.create_requester(target_user),
-                target_user=target_user,
-                by_admin=True,
+            await self.api.set_displayname(
+                user_id=target_user,
                 new_displayname=displayname,
             )
 
@@ -731,10 +727,8 @@ class TokenAuthenticator:
 
         if displayname:
             target_user = UserID.from_string(fully_qualified_uid)
-            await self.api._hs.get_profile_handler().set_displayname(
-                requester=synapse.types.create_requester(target_user),
-                target_user=target_user,
-                by_admin=True,
+            await self.api.set_displayname(
+                user_id=target_user,
                 new_displayname=displayname,
             )
 

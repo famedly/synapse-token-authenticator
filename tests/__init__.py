@@ -71,7 +71,7 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
                 new=AsyncMock(side_effect=register_user),
             ),
             patch(
-                "synapse.handlers.profile.ProfileHandler.set_displayname",
+                "synapse.module_api.ModuleApi.set_displayname",
                 new=AsyncMock(return_value=None),
             ),
         ]
