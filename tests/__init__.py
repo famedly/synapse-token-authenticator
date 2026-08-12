@@ -244,7 +244,7 @@ def mock_idp_get(uri, **kwargs):
             payload={
                 "issuer": hostname,
                 "introspection_endpoint": f"{hostname}/oauth/v2/introspect",
-                "id_token_signing_alg_values_supported": "RS256",
+                "id_token_signing_alg_values_supported": ["RS256"],
                 "jwks_uri": f"{hostname}/oauth/v2/keys",
             }
         )

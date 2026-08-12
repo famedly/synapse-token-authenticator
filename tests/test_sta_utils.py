@@ -3,7 +3,6 @@ import pytest
 from synapse_token_authenticator.utils import (
     all_list_elems_are_equal_return_the_elem,
     get_path_in_dict,
-    if_not_none,
     validate_scopes,
 )
 
@@ -102,11 +101,6 @@ def test_validate_scopes():
     assert not validate_scopes("foo boo", "foo")
     assert not validate_scopes(["foo", "boo"], "foo")
     assert validate_scopes("foo boo", "boo foo loo")
-
-
-def test_if_not_none():
-    assert if_not_none(lambda x: x + 1)(3) == 4
-    assert if_not_none(lambda x: x + 1)(None) is None
 
 
 def test_all_list_elems_are_equal_return_the_elem():

@@ -1,3 +1,5 @@
-from synapse_token_authenticator.token_authenticator import (  # noqa: F401
+from synapse_token_authenticator.token_authenticator import (
     TokenAuthenticator,
 )
+
+__all__ = ["TokenAuthenticator"]
