@@ -1,10 +1,11 @@
 import pytest
 
+from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.http_auth import (
     BasicAuth,
     BearerAuth,
     NoAuth,
-    _coerce_http_auth,
+    coerce_http_auth,
     parse_dict_auth,
     parse_list_auth,
 )
@@ -13,7 +14,7 @@ from synapse_token_authenticator.http_auth import (
 class TestHttpAuth:
     def test_coerce_http_auth_invalid_format(self):
         with pytest.raises(ValueError) as e:
-            _coerce_http_auth("something invalid")
+            coerce_http_auth("something invalid")
         assert e.value.args[0] == "HttpAuth parsing failed, expected list or dict"
 
     def test_no_auth(self):
@@ -82,3 +83,80 @@ class TestHttpAuth:
         with pytest.raises(ValueError) as e:
             parse_list_auth(["unknown"])
         assert e.value.args[0] == "Unknown HttpAuth type unknown"
+
+
+class TestHttpAuthConfigCoercion:
+    def test_introspection_auth(self):
+        dict_cfg = TokenAuthenticatorConfig(
+            {
+                "oauth": {
+                    "introspection_validation": {
+                        "endpoint": "http://idp.test/introspect",
+                        "auth": {
+                            "type": "basic",
+                            "username": "user",
+                            "password": "pass",
+                        },
+                    },
+                    "notify_on_registration": {
+                        "url": "http://iop.test/notify",
+                        "auth": {"type": "bearer", "token": "token"},
+                    },
+                }
+            }
+        )
+        introspection_auth = dict_cfg.oauth.introspection_validation.auth
+        assert introspection_auth == BasicAuth(username="user", password="pass")
+        assert introspection_auth.header_map() == {
+            b"Authorization": [b"Basic dXNlcjpwYXNz"]
+        }
+
+        notify_on_registration_auth = dict_cfg.oauth.notify_on_registration.auth
+        assert notify_on_registration_auth == BearerAuth(token="token")
+        assert notify_on_registration_auth.header_map() == {
+            b"Authorization": [b"Bearer token"]
+        }
+
+        list_cfg = TokenAuthenticatorConfig(
+            {
+                "oauth": {
+                    "introspection_validation": {
+                        "endpoint": "http://idp.test/introspect",
+                        "auth": ["bearer", "token"],
+                    },
+                    "notify_on_registration": {
+                        "url": "http://iop.test/notify",
+                        "auth": ["basic", "user", "pass"],
+                    },
+                }
+            }
+        )
+        introspection_auth = list_cfg.oauth.introspection_validation.auth
+        assert introspection_auth == BearerAuth(token="token")
+        assert introspection_auth.header_map() == {b"Authorization": [b"Bearer token"]}
+
+        notify_on_registration_auth = list_cfg.oauth.notify_on_registration.auth
+        assert notify_on_registration_auth == BasicAuth(
+            username="user", password="pass"
+        )
+        assert notify_on_registration_auth.header_map() == {
+            b"Authorization": [b"Basic dXNlcjpwYXNz"]
+        }
+
+    def test_auth_defaults_to_no_auth(self):
+        cfg = TokenAuthenticatorConfig(
+            {
+                "oauth": {
+                    "introspection_validation": {
+                        "endpoint": "http://idp.test/introspect",
+                    },
+                    "notify_on_registration": {
+                        "url": "http://iop.test/notify",
+                    },
+                }
+            }
+        )
+        assert cfg.oauth.introspection_validation.auth == NoAuth()
+        assert cfg.oauth.notify_on_registration.auth == NoAuth()
+        assert cfg.oauth.introspection_validation.auth.header_map() == {}
+        assert cfg.oauth.notify_on_registration.auth.header_map() == {}

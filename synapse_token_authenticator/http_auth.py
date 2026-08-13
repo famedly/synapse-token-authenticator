@@ -70,7 +70,7 @@ def parse_list_auth(value: list) -> NoAuth | BasicAuth | BearerAuth:
     raise AuthValidationError(f"Unknown HttpAuth type {auth_type}")
 
 
-def _coerce_http_auth(value: Any) -> NoAuth | BasicAuth | BearerAuth:
+def coerce_http_auth(value: Any) -> NoAuth | BasicAuth | BearerAuth:
     if isinstance(value, (NoAuth, BasicAuth, BearerAuth)):
         return value
     if isinstance(value, dict):
@@ -82,5 +82,5 @@ def _coerce_http_auth(value: Any) -> NoAuth | BasicAuth | BearerAuth:
 
 HttpAuth: TypeAlias = Annotated[
     NoAuth | BasicAuth | BearerAuth,
-    BeforeValidator(_coerce_http_auth),
+    BeforeValidator(coerce_http_auth),
 ]
