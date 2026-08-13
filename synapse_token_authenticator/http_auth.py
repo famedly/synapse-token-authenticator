@@ -47,9 +47,9 @@ def parse_dict_auth(value: dict) -> NoAuth | BasicAuth | BearerAuth:
     if auth_type is None:
         return NoAuth()
     if auth_type == "basic":
-        return BasicAuth(username=value["username"], password=value["password"])
+        return BasicAuth(**value)
     if auth_type == "bearer":
-        return BearerAuth(token=value["token"])
+        return BearerAuth(**value)
     raise AuthValidationError(f"Unknown HttpAuth type {auth_type}")
 
 

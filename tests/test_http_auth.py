@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.http_auth import (
@@ -43,9 +44,22 @@ class TestHttpAuth:
             parse_dict_auth({"username": "user", "password": "pass"})
         assert e.value.args[0] == "HttpAuth missing type"
 
+    def test_parse_dict_auth_basic_extra_fields(self):
+        with pytest.raises(ValidationError) as e:
+            parse_dict_auth(
+                {
+                    "type": "basic",
+                    "username": "user",
+                    "password": "pass",
+                    "extra": "field",
+                }
+            )
+        assert "Extra inputs are not permitted" in str(e)
+
     def test_parse_dict_auth_basic_missing_username(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(ValidationError) as e:
             parse_dict_auth({"type": "basic", "password": "pass"})
+        assert "Field required" in str(e)
 
     def test_parse_dict_auth_unknown_http_auth_type(self):
         with pytest.raises(ValueError) as e:
