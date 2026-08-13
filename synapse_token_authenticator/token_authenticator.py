@@ -17,13 +17,13 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
 from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
-from synapse.module_api import ModuleApi
+from synapse.module_api import JsonDict, LoginResponse, ModuleApi
 from synapse.types import UserID
 from twisted.internet import defer
 
@@ -41,9 +41,6 @@ from synapse_token_authenticator.utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import synapse
 
 
 class TokenAuthenticator:
@@ -111,13 +108,8 @@ class TokenAuthenticator:
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
     async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
@@ -201,13 +193,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oidc_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oidc":
             logger.info("Wrong login type")
@@ -290,13 +277,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oauth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -591,13 +573,8 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     async def check_epa(
-        self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, _username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
@@ -721,7 +698,7 @@ class TokenAuthenticator:
 
     def _get_external_id(
         self, fully_qualified_uid: str
-    ) -> "defer.Deferred[list[tuple[str, str]]]":
+    ) -> defer.Deferred[list[tuple[str, str]]]:
         return defer.ensureDeferred(
             self.api._store.get_external_ids_by_user(fully_qualified_uid)
         )

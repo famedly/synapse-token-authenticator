@@ -12,7 +12,6 @@ from synapse_token_authenticator.claims_validator import (
 from synapse_token_authenticator.http_auth import (
     HttpAuth,
     NoAuth,
-    parse_auth,
 )
 
 
@@ -109,18 +108,11 @@ class TokenAuthenticatorConfig:
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
 
-                    if not isinstance(self.auth, NoAuth):
-                        self.auth = parse_auth(self.auth)
-
             @dataclass
             class NotifyOnRegistration:
                 url: str
                 auth: HttpAuth = field(default_factory=NoAuth)
                 interrupt_on_error: bool = True
-
-                def __post_init__(self):
-                    if not isinstance(self.auth, NoAuth):
-                        self.auth = parse_auth(self.auth)
 
             @dataclass
             class OAuthConfig:

@@ -20,7 +20,7 @@ import json
 import sys
 import warnings
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Self, TypeVar
 
 import attr
 import zope.interface
@@ -116,7 +116,7 @@ class FakeResponse:  # type: ignore[misc]
         protocol.connectionLost(Failure(ResponseDone()))
 
     @classmethod
-    def json(cls, *, code: int = 200, payload: JsonSerializable) -> "FakeResponse":
+    def json(cls, *, code: int = 200, payload: JsonSerializable) -> Self:
         headers = Headers({"Content-Type": ["application/json"]})
         body = json.dumps(payload).encode("utf-8")
         return cls(code=code, body=body, headers=headers)

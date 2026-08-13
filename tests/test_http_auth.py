@@ -1,0 +1,84 @@
+import pytest
+
+from synapse_token_authenticator.http_auth import (
+    BasicAuth,
+    BearerAuth,
+    NoAuth,
+    _coerce_http_auth,
+    parse_dict_auth,
+    parse_list_auth,
+)
+
+
+class TestHttpAuth:
+    def test_coerce_http_auth_invalid_format(self):
+        with pytest.raises(ValueError) as e:
+            _coerce_http_auth("something invalid")
+        assert e.value.args[0] == "HttpAuth parsing failed, expected list or dict"
+
+    def test_no_auth(self):
+        no_auth = NoAuth()
+        assert no_auth.header_map() == {}
+
+    def test_basic_auth(self):
+        basic_auth = BasicAuth(username="user", password="pass")
+        assert basic_auth.header_map() == {b"Authorization": [b"Basic dXNlcjpwYXNz"]}
+
+    def test_bearer_auth(self):
+        bearer_auth = BearerAuth(token="token")
+        assert bearer_auth.header_map() == {b"Authorization": [b"Bearer token"]}
+
+    def test_parse_dict_auth(self):
+        assert parse_dict_auth({"type": None}) == NoAuth()
+        assert parse_dict_auth(
+            {"type": "basic", "username": "user", "password": "pass"}
+        ) == BasicAuth(username="user", password="pass")
+        assert parse_dict_auth({"type": "bearer", "token": "token"}) == BearerAuth(
+            token="token"
+        )
+
+    def test_parse_dict_auth_missing_type(self):
+        with pytest.raises(ValueError) as e:
+            parse_dict_auth({"username": "user", "password": "pass"})
+        assert e.value.args[0] == "HttpAuth missing type"
+
+    def test_parse_dict_auth_basic_missing_username(self):
+        with pytest.raises(KeyError):
+            parse_dict_auth({"type": "basic", "password": "pass"})
+
+    def test_parse_dict_auth_unknown_http_auth_type(self):
+        with pytest.raises(ValueError) as e:
+            parse_dict_auth({"type": "unknown", "token": "token"})
+        assert e.value.args[0] == "Unknown HttpAuth type unknown"
+
+    def test_parse_list_auth_basic_empty_list(self):
+        with pytest.raises(ValueError) as e:
+            parse_list_auth([])
+        assert e.value.args[0] == "HttpAuth parsing failed, empty list"
+
+    def test_parse_auth_list(self):
+        assert parse_list_auth([None]) == NoAuth()
+        assert parse_list_auth(["basic", "user", "pass"]) == BasicAuth(
+            username="user", password="pass"
+        )
+        assert parse_list_auth(["bearer", "token"]) == BearerAuth(token="token")
+
+    def test_parse_list_auth_basic_missing_username(self):
+        with pytest.raises(ValueError) as e:
+            parse_list_auth(["basic", "pass"])
+        assert e.value.args[0] == "BasicAuth expects username and password"
+
+    def test_parse_list_auth_basic_extra_fields(self):
+        with pytest.raises(ValueError) as e:
+            parse_list_auth(["basic", "user", "pass", "extra", "field"])
+        assert e.value.args[0] == "BasicAuth expects username and password"
+
+    def test_parse_list_auth_bearer_extra_fields(self):
+        with pytest.raises(ValueError) as e:
+            parse_list_auth(["bearer", "token", "extra", "field"])
+        assert e.value.args[0] == "BearerAuth expects a single token"
+
+    def test_parse_list_auth_unknown_http_auth_type(self):
+        with pytest.raises(ValueError) as e:
+            parse_list_auth(["unknown"])
+        assert e.value.args[0] == "Unknown HttpAuth type unknown"

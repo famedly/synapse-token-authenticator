@@ -4,15 +4,21 @@ from typing import Annotated, Any, TypeAlias
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 
+class AuthValidationError(ValueError):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
 class NoAuth(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     def header_map(self) -> dict[bytes, list[bytes]]:
         return {}
 
 
 class BasicAuth(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     username: str
     password: str
@@ -25,7 +31,7 @@ class BasicAuth(BaseModel):
 
 
 class BearerAuth(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     token: str
 
@@ -33,50 +39,45 @@ class BearerAuth(BaseModel):
         return {b"Authorization": [b"Bearer " + self.token.encode("utf-8")]}
 
 
-def parse_auth(value: dict | list) -> NoAuth | BasicAuth | BearerAuth:
-    """Parse an HttpAuth config value without mutating the input."""
-    if isinstance(value, dict):
-        data = dict(value)
-        try:
-            auth_type = data.pop("type")
-        except KeyError as error:
-            raise ValueError("HttpAuth missing type") from error
-        if auth_type is None:
-            return NoAuth()
-        if auth_type == "basic":
-            return BasicAuth(**data)
-        if auth_type == "bearer":
-            return BearerAuth(**data)
-        raise ValueError(f"Unknown HttpAuth type {auth_type}")
+def parse_dict_auth(value: dict) -> NoAuth | BasicAuth | BearerAuth:
+    try:
+        auth_type = value.pop("type")
+    except KeyError as error:
+        raise AuthValidationError("HttpAuth missing type") from error
+    if auth_type is None:
+        return NoAuth()
+    if auth_type == "basic":
+        return BasicAuth(username=value["username"], password=value["password"])
+    if auth_type == "bearer":
+        return BearerAuth(token=value["token"])
+    raise AuthValidationError(f"Unknown HttpAuth type {auth_type}")
 
-    if isinstance(value, list):
-        items = list(value)
-        if not items:
-            raise ValueError("HttpAuth parsing failed, empty list")
-        auth_type, *args = items
-        if auth_type is None:
-            return NoAuth()
-        if auth_type == "basic":
-            username, password, *rest = args
-            if rest:
-                raise ValueError("BasicAuth expects username and password")
-            return BasicAuth(username=username, password=password)
-        if auth_type == "bearer":
-            token, *rest = args
-            if rest:
-                raise ValueError("BearerAuth expects a single token")
-            return BearerAuth(token=token)
-        raise ValueError(f"Unknown HttpAuth type {auth_type}")
 
-    raise ValueError("HttpAuth parsing failed, expected list or dict")
+def parse_list_auth(value: list) -> NoAuth | BasicAuth | BearerAuth:
+    if not value:
+        raise AuthValidationError("HttpAuth parsing failed, empty list")
+    auth_type, *args = value
+    if auth_type is None:
+        return NoAuth()
+    if auth_type == "basic":
+        if len(args) != 2:
+            raise AuthValidationError("BasicAuth expects username and password")
+        return BasicAuth(username=args[0], password=args[1])
+    if auth_type == "bearer":
+        if len(args) != 1:
+            raise AuthValidationError("BearerAuth expects a single token")
+        return BearerAuth(token=args[0])
+    raise AuthValidationError(f"Unknown HttpAuth type {auth_type}")
 
 
 def _coerce_http_auth(value: Any) -> NoAuth | BasicAuth | BearerAuth:
     if isinstance(value, (NoAuth, BasicAuth, BearerAuth)):
         return value
-    if isinstance(value, (dict, list)):
-        return parse_auth(value)
-    raise ValueError("HttpAuth parsing failed, expected list or dict")
+    if isinstance(value, dict):
+        return parse_dict_auth(value)
+    if isinstance(value, list):
+        return parse_list_auth(value)
+    raise AuthValidationError("HttpAuth parsing failed, expected list or dict")
 
 
 HttpAuth: TypeAlias = Annotated[
