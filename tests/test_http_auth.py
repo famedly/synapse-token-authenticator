@@ -44,8 +44,23 @@ class TestHttpAuth:
         assert e.value.args[0] == "HttpAuth missing type"
 
     def test_parse_dict_auth_basic_missing_username(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError):
             parse_dict_auth({"type": "basic", "password": "pass"})
+
+    def test_parse_dict_auth_basic_extra_fields(self):
+        with pytest.raises(ValueError):
+            parse_dict_auth(
+                {
+                    "type": "basic",
+                    "username": "user",
+                    "password": "pass",
+                    "extra": "field",
+                }
+            )
+
+    def test_parse_dict_auth_bearer_extra_fields(self):
+        with pytest.raises(ValueError):
+            parse_dict_auth({"type": "bearer", "token": "token", "extra": "field"})
 
     def test_parse_dict_auth_unknown_http_auth_type(self):
         with pytest.raises(ValueError) as e:
