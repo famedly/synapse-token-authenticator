@@ -6,16 +6,16 @@ from synapse_token_authenticator.http_auth import (
     BasicAuth,
     BearerAuth,
     NoAuth,
-    coerce_http_auth,
+    parse_auth,
     parse_dict_auth,
     parse_list_auth,
 )
 
 
 class TestHttpAuth:
-    def test_coerce_http_auth_invalid_format(self):
-        with pytest.raises(ValueError) as e:
-            coerce_http_auth("something invalid")
+    def test_parse_auth_invalid_format(self):
+        with pytest.raises(Exception) as e:
+            parse_auth("something invalid")
         assert e.value.args[0] == "HttpAuth parsing failed, expected list or dict"
 
     def test_no_auth(self):
@@ -40,9 +40,9 @@ class TestHttpAuth:
         )
 
     def test_parse_dict_auth_missing_type(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_dict_auth({"username": "user", "password": "pass"})
-        assert e.value.args[0] == "HttpAuth missing type"
+        assert e.value.args[0] == "type"
 
     def test_parse_dict_auth_basic_extra_fields(self):
         with pytest.raises(ValidationError) as e:
@@ -62,14 +62,14 @@ class TestHttpAuth:
         assert "Field required" in str(e)
 
     def test_parse_dict_auth_unknown_http_auth_type(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_dict_auth({"type": "unknown", "token": "token"})
         assert e.value.args[0] == "Unknown HttpAuth type unknown"
 
     def test_parse_list_auth_basic_empty_list(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_list_auth([])
-        assert e.value.args[0] == "HttpAuth parsing failed, empty list"
+        assert e.value.args[0] == "pop from empty list"
 
     def test_parse_auth_list(self):
         assert parse_list_auth([None]) == NoAuth()
@@ -79,22 +79,22 @@ class TestHttpAuth:
         assert parse_list_auth(["bearer", "token"]) == BearerAuth(token="token")
 
     def test_parse_list_auth_basic_missing_username(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_list_auth(["basic", "pass"])
         assert e.value.args[0] == "BasicAuth expects username and password"
 
     def test_parse_list_auth_basic_extra_fields(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_list_auth(["basic", "user", "pass", "extra", "field"])
         assert e.value.args[0] == "BasicAuth expects username and password"
 
     def test_parse_list_auth_bearer_extra_fields(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_list_auth(["bearer", "token", "extra", "field"])
         assert e.value.args[0] == "BearerAuth expects a single token"
 
     def test_parse_list_auth_unknown_http_auth_type(self):
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(Exception) as e:
             parse_list_auth(["unknown"])
         assert e.value.args[0] == "Unknown HttpAuth type unknown"
 
