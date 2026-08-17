@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from pydantic import ValidationError
 
@@ -64,7 +66,7 @@ class TestHttpAuth:
     def test_parse_dict_auth_unknown_http_auth_type(self):
         with pytest.raises(Exception) as e:
             parse_dict_auth({"type": "unknown", "token": "token"})
-        assert e.value.args[0] == "Unknown HttpAuth type unknown"
+        assert e.value.args[0] == "Unknown HttpAuth type 'unknown'"
 
     def test_parse_list_auth_basic_empty_list(self):
         with pytest.raises(Exception) as e:
@@ -96,7 +98,7 @@ class TestHttpAuth:
     def test_parse_list_auth_unknown_http_auth_type(self):
         with pytest.raises(Exception) as e:
             parse_list_auth(["unknown"])
-        assert e.value.args[0] == "Unknown HttpAuth type unknown"
+        assert e.value.args[0] == "Unknown HttpAuth type 'unknown'"
 
 
 class TestHttpAuthConfigCoercion:
@@ -174,3 +176,46 @@ class TestHttpAuthConfigCoercion:
         assert cfg.oauth.notify_on_registration.auth == NoAuth()
         assert cfg.oauth.introspection_validation.auth.header_map() == {}
         assert cfg.oauth.notify_on_registration.auth.header_map() == {}
+
+    def test_introspection_auth_error_logs_config_class(self, caplog):
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(Exception),
+        ):
+            TokenAuthenticatorConfig(
+                {
+                    "oauth": {
+                        "introspection_validation": {
+                            "endpoint": "http://idp.test/introspect",
+                            "auth": {"type": "unknown"},
+                        },
+                    }
+                }
+            )
+        assert (
+            "IntrospectionValidationConfig: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            in caplog.text
+        )
+
+    def test_notify_on_registration_auth_error_logs_config_class(self, caplog):
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(Exception),
+        ):
+            TokenAuthenticatorConfig(
+                {
+                    "oauth": {
+                        "introspection_validation": {
+                            "endpoint": "http://idp.test/introspect",
+                        },
+                        "notify_on_registration": {
+                            "url": "http://iop.test/notify",
+                            "auth": ["unknown"],
+                        },
+                    }
+                }
+            )
+        assert (
+            "NotifyOnRegistration: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            in caplog.text
+        )

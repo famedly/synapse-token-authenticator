@@ -1,7 +1,10 @@
+import logging
 from base64 import b64encode
 from typing import TypeAlias
 
 from pydantic import BaseModel, ConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class NoAuth(BaseModel):
@@ -44,7 +47,7 @@ def parse_dict_auth(value: dict) -> HttpAuth:
         return BasicAuth(**value)
     if auth_type == "bearer":
         return BearerAuth(**value)
-    raise Exception(f"Unknown HttpAuth type {auth_type}")
+    raise Exception(f"Unknown HttpAuth type '{auth_type}'")
 
 
 def parse_list_auth(value: list) -> HttpAuth:
@@ -59,14 +62,23 @@ def parse_list_auth(value: list) -> HttpAuth:
         if len(value) != 1:
             raise Exception("BearerAuth expects a single token")
         return BearerAuth(token=value[0])
-    raise Exception(f"Unknown HttpAuth type {auth_type}")
+    raise Exception(f"Unknown HttpAuth type '{auth_type}'")
 
 
-def parse_auth(value: dict | list | HttpAuth) -> HttpAuth:
+def parse_auth(
+    value: dict | list | HttpAuth, *, context: str | None = None
+) -> HttpAuth:
     if isinstance(value, (NoAuth, BasicAuth, BearerAuth)):
         return value
-    if isinstance(value, dict):
-        return parse_dict_auth(value)
-    if isinstance(value, list):
-        return parse_list_auth(value)
-    raise Exception("HttpAuth parsing failed, expected list or dict")
+    try:
+        if isinstance(value, dict):
+            return parse_dict_auth(value)
+        if isinstance(value, list):
+            return parse_list_auth(value)
+        raise Exception("HttpAuth parsing failed, expected list or dict")
+    except Exception as e:
+        if context:
+            logger.error("%s: HttpAuth configuration error: %s", context, e)
+        else:
+            logger.error("HttpAuth configuration error: %s", e)
+        raise e from e

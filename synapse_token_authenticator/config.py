@@ -108,7 +108,7 @@ class TokenAuthenticatorConfig:
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
-                    self.auth = parse_auth(self.auth)
+                    self.auth = parse_auth(self.auth, context=type(self).__name__)
 
             @dataclass
             class NotifyOnRegistration:
@@ -117,7 +117,7 @@ class TokenAuthenticatorConfig:
                 interrupt_on_error: bool = True
 
                 def __post_init__(self):
-                    self.auth = parse_auth(self.auth)
+                    self.auth = parse_auth(self.auth, context=type(self).__name__)
 
             @dataclass
             class OAuthConfig:
