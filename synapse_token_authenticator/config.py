@@ -9,7 +9,11 @@ from synapse_token_authenticator.claims_validator import (
     Validator,
     parse_validator,
 )
-from synapse_token_authenticator.utils import basic_auth, bearer_auth
+from synapse_token_authenticator.http_auth import (
+    HttpAuth,
+    NoAuth,
+    parse_auth,
+)
 
 
 class OIDCConfig:
@@ -104,9 +108,7 @@ class TokenAuthenticatorConfig:
                 def __post_init__(self):
                     if not isinstance(self.validator, Exist):
                         self.validator = parse_validator(self.validator)
-
-                    if not isinstance(self.auth, NoAuth):
-                        self.auth = parse_auth(self.auth)
+                    self.auth = parse_auth(self.auth, context=type(self).__name__)
 
             @dataclass
             class NotifyOnRegistration:
@@ -115,8 +117,7 @@ class TokenAuthenticatorConfig:
                 interrupt_on_error: bool = True
 
                 def __post_init__(self):
-                    if not isinstance(self.auth, NoAuth):
-                        self.auth = parse_auth(self.auth)
+                    self.auth = parse_auth(self.auth, context=type(self).__name__)
 
             @dataclass
             class OAuthConfig:
@@ -226,53 +227,3 @@ def verify_jwt_based_cfg(cfg):
     ]:
         error_msg = f"Unknown algorithm: '{cfg.algorithm}'"
         raise Exception(error_msg)
-
-
-@dataclass
-class NoAuth:
-    def header_map(self):
-        return {}
-
-
-@dataclass
-class BasicAuth:
-    username: str
-    password: str
-
-    def header_map(self):
-        return basic_auth(self.username, self.password)
-
-
-@dataclass
-class BearerAuth:
-    token: str
-
-    def header_map(self):
-        return bearer_auth(self.token)
-
-
-HttpAuth: TypeAlias = BasicAuth | BearerAuth | NoAuth
-
-
-def parse_auth(d: dict | list) -> HttpAuth:
-    if isinstance(d, dict):
-        auth_type = d.pop("type")
-        if auth_type is None:
-            return NoAuth()
-        if auth_type == "basic":
-            return BasicAuth(**d)
-        if auth_type == "bearer":
-            return BearerAuth(**d)
-        error = f"Unknown HttpAuth type {auth_type}"
-        raise Exception(error)
-    if isinstance(d, list):
-        auth_type = d.pop(0)
-        if auth_type is None:
-            return NoAuth()
-        if auth_type == "basic":
-            return BasicAuth(*d)
-        if auth_type == "bearer":
-            return BearerAuth(*d)
-        error = f"Unknown HttpAuth type {auth_type}"
-        raise Exception(error)
-    raise Exception("HttpAuth parsing failed, expected list or dict")

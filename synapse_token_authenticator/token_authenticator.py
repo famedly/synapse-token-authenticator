@@ -13,29 +13,27 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 import base64
-import json
 import logging
 import re
 from collections.abc import Awaitable, Callable
 from http import HTTPStatus
 from typing import Any
-from urllib.parse import urljoin
 
-import synapse
 from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
 from jwcrypto.jwk import JWKSet
 from synapse.api.errors import HttpResponseException
-from synapse.module_api import ModuleApi
+from synapse.module_api import JsonDict, LoginResponse, ModuleApi
 from synapse.types import UserID
 from twisted.internet import defer
-from twisted.web import resource
 
-from synapse_token_authenticator.config import OIDCConfig, TokenAuthenticatorConfig
+from synapse_token_authenticator.config import TokenAuthenticatorConfig
+from synapse_token_authenticator.http_auth import BasicAuth
+from synapse_token_authenticator.resources.login_metadata import LoginMetadataResource
+from synapse_token_authenticator.resources.metadata import MetadataResource
+from synapse_token_authenticator.resources.public_key import PublicKeysResource
 from synapse_token_authenticator.utils import (
-    MetadataResource,
     all_list_elems_are_equal_return_the_elem,
-    basic_auth,
     get_oidp_metadata,
     get_path_in_dict,
     if_not_none,
@@ -75,7 +73,7 @@ class TokenAuthenticator:
 
             self.api.register_web_resource(
                 "/_famedly/login/com.famedly.login.token.oidc",
-                self.LoginMetadataResource(oidc),
+                LoginMetadataResource(oidc),
             )
 
         if (cfg := getattr(self.config, "oauth", None)) is not None:
@@ -102,51 +100,16 @@ class TokenAuthenticator:
             keys = JWKSet()
             keys.add(cfg.enc_jwk)
             self.api.register_web_resource(
-                cfg.enc_jwks_endpoint, self.PublicKeysResource(keys)
+                cfg.enc_jwks_endpoint, PublicKeysResource(keys)
             )
 
             auth_checkers[("com.famedly.login.token.epa", ("token",))] = self.check_epa
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
-    class LoginMetadataResource(resource.Resource):
-        def __init__(self, oidc_config: OIDCConfig):
-            self.issuer = oidc_config.issuer
-            self.metadata_url = urljoin(
-                oidc_config.issuer, "/.well-known/openid-configuration"
-            )
-            self.organization_id = oidc_config.organization_id
-            self.project_id = oidc_config.project_id
-
-        def render_GET(self, request):
-            request.setHeader(b"content-type", b"application/json")
-            request.setHeader(b"access-control-allow-origin", b"*")
-            return json.dumps(
-                {
-                    "issuer": self.issuer,
-                    "issuer-metadata": self.metadata_url,
-                    "organization-id": self.organization_id,
-                    "project-id": self.project_id,
-                }
-            ).encode("utf-8")
-
-    class PublicKeysResource(resource.Resource):
-        def __init__(self, keys: JWKSet):
-            self.keys = keys.export(private_keys=False).encode("utf-8")
-
-        def render_GET(self, request):
-            request.setHeader(b"content-type", b"application/json")
-            request.setHeader(b"access-control-allow-origin", b"*")
-            return self.keys
-
     async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token":
             logger.info("Wrong login type")
@@ -230,13 +193,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oidc_auth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oidc":
             logger.info("Wrong login type")
@@ -257,7 +215,9 @@ class TokenAuthenticator:
             introspection_resp = await client.post_urlencoded_get_json(
                 oidc_metadata.introspection_endpoint,
                 data,
-                headers=basic_auth(oidc.client_id, oidc.client_secret),
+                headers=BasicAuth(
+                    username=oidc.client_id, password=oidc.client_secret
+                ).header_map(),
             )
         except HttpResponseException as e:
             if e.code == HTTPStatus.UNAUTHORIZED:
@@ -317,13 +277,8 @@ class TokenAuthenticator:
         return (user_id_str, None)
 
     async def check_oauth(
-        self, username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.oauth
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.oauth":
@@ -618,13 +573,8 @@ class TokenAuthenticator:
         return (fully_qualified_uid, None)
 
     async def check_epa(
-        self, _username: str, login_type: str, login_dict: "synapse.module_api.JsonDict"
-    ) -> (
-        tuple[
-            str, Callable[["synapse.module_api.LoginResponse"], Awaitable[None]] | None
-        ]
-        | None
-    ):
+        self, _username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.epa
         logger.info("Receiving auth request")
         if login_type != "com.famedly.login.token.epa":
@@ -748,7 +698,7 @@ class TokenAuthenticator:
 
     def _get_external_id(
         self, fully_qualified_uid: str
-    ) -> "defer.Deferred[list[tuple[str, str]]]":
+    ) -> defer.Deferred[list[tuple[str, str]]]:
         return defer.ensureDeferred(
             self.api._store.get_external_ids_by_user(fully_qualified_uid)
         )
