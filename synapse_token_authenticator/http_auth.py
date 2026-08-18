@@ -41,7 +41,9 @@ HttpAuth: TypeAlias = NoAuth | BasicAuth | BearerAuth
 
 def parse_dict_auth(value: dict) -> HttpAuth:
     auth_type = value.pop("type")
-    # This is not KeyError safe, but it is caught in the caller
+    # Declaring the auth block without a 'type' parameter is an error and should raise
+    # the KeyError. If a user don't want to use authentication system, they should not
+    # include the auth block at all.
     if auth_type is None:
         return NoAuth()
     if auth_type == "basic":
@@ -53,7 +55,9 @@ def parse_dict_auth(value: dict) -> HttpAuth:
 
 def parse_list_auth(value: list) -> HttpAuth:
     auth_type = value.pop(0)
-    # This is not IndexError safe, but it is caught in the caller
+    # Declaring the auth block without a 'type' information is an error and should
+    # raise the IndexError. If a user don't want to use authentication system, they
+    # should not include the auth block at all.
     if auth_type is None:
         return NoAuth()
     if auth_type == "basic":
