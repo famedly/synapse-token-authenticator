@@ -41,6 +41,7 @@ HttpAuth: TypeAlias = NoAuth | BasicAuth | BearerAuth
 
 def parse_dict_auth(value: dict) -> HttpAuth:
     auth_type = value.pop("type")
+    # This is not KeyError safe, but it is caught in the caller
     if auth_type is None:
         return NoAuth()
     if auth_type == "basic":
@@ -52,6 +53,7 @@ def parse_dict_auth(value: dict) -> HttpAuth:
 
 def parse_list_auth(value: list) -> HttpAuth:
     auth_type = value.pop(0)
+    # This is not IndexError safe, but it is caught in the caller
     if auth_type is None:
         return NoAuth()
     if auth_type == "basic":
