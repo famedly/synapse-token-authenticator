@@ -1,27 +1,12 @@
 import os
-from typing import Literal, Self, TypeAlias
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
-JwtAlgorithm: TypeAlias = Literal[
-    "HS256",
-    "HS384",
-    "HS512",
-    "RS256",
-    "RS384",
-    "RS512",
-    "ES256",
-    "ES384",
-    "ES512",
-    "PS256",
-    "PS384",
-    "PS512",
-    "EdDSA",
-]
+from synapse_token_authenticator.config_util.base import BaseConfigModel, JwtAlgorithm
 
 
-class JwtConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+class JwtConfig(BaseConfigModel):
 
     secret: str | None = None
     keyfile: str | None = None
