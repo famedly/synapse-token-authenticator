@@ -7,5 +7,5 @@ class OIDCConfig(BaseConfigModel):
     client_secret: str
     project_id: str
     organization_id: str
-    allowed_client_ids: str | None = None
+    allowed_client_ids: list[str] | None = None
     allow_registration: bool = False
