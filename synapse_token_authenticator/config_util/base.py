@@ -38,22 +38,22 @@ class ValidatorMapping(BaseConfigModel):
 
 
 def _coerce_jwk_set(value: Any) -> JWKSet | JWK | None:
-    if value and isinstance(value, dict) and value.get("keys"):
-        return JWKSet(**value)
-    elif value and isinstance(value, dict):
-        return JWK(**value)
-    elif value and "keys" in value:
-        return JWKSet.from_json(value)
-    elif value:
-        return JWK.from_json(value)
-    else:
+    if not value:
         return None
+    if isinstance(value, dict) and value.get("keys"):
+        return JWKSet(**value)
+    elif isinstance(value, dict):
+        return JWK(**value)
+    elif "keys" in value:
+        return JWKSet.from_json(value)
+    else:
+        return JWK.from_json(value)
 
 
 def _coerce_jwk(value: Any) -> JWK | None:
     if value is None or isinstance(value, JWK):
         return value
-    if isinstance(value, dict):
+    if value and isinstance(value, dict):
         return JWK(**value)
     raise ValueError("Invalid jwk")
 

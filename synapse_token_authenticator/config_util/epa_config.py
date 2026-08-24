@@ -28,7 +28,7 @@ class EPaConfig(ValidatorMapping, JwkSource):
     lowercase_localpart: bool = False
 
     @model_validator(mode="after")
-    def load_keys(self) -> Self:
+    def resolve_enc_jwk_source(self) -> Self:
         if not self.enc_jwk and self.enc_jwk_file:
             with open(self.enc_jwk_file, "rb") as f:
                 self.enc_jwk = JWK.from_pem(f.read())

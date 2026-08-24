@@ -68,11 +68,6 @@ class TestNotifyOnRegistration:
 
 
 class TestOAuthConfig:
-    """
-    test username type
-    test if jwt_validation or introspection_validation is specified
-    """
-
     def test_oauth_config(self):
         jwk = get_jwk().export(private_key=True)
         config = OAuthConfig(
