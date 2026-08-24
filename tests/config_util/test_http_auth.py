@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
-from synapse_token_authenticator.http_auth import (
+from synapse_token_authenticator.config_util.http_auth import (
     BasicAuth,
     BearerAuth,
     NoAuth,
@@ -12,6 +12,8 @@ from synapse_token_authenticator.http_auth import (
     parse_dict_auth,
     parse_list_auth,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TestHttpAuth:
@@ -193,7 +195,7 @@ class TestHttpAuthConfigCoercion:
                 }
             )
         assert (
-            "IntrospectionValidationConfig: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            "HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
             in caplog.text
         )
 
@@ -216,6 +218,6 @@ class TestHttpAuthConfigCoercion:
                 }
             )
         assert (
-            "NotifyOnRegistration: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            "HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
             in caplog.text
         )

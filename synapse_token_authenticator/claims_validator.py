@@ -39,50 +39,58 @@ Validator: TypeAlias = Union[
 
 def parse_validator(d: dict | list) -> Validator:
     if isinstance(d, dict):
-        val_type = d.pop("type")
-        if val_type == "exist":
-            return Exist(**d)
-        if val_type == "not":
-            return Not(**d)
-        if val_type == "equal":
-            return Equal(**d)
-        if val_type == "regex":
-            return MatchesRegex(**d)
-        if val_type == "any_of":
-            return AnyOf(**d)
-        if val_type == "all_of":
-            return AllOf(**d)
-        if val_type == "in":
-            return In(**d)
-        if val_type == "list_any_of":
-            return ListAnyOf(**d)
-        if val_type == "list_all_of":
-            return ListAllOf(**d)
-        error = f"Unknown validator type {val_type}"
-        raise Exception(error)
+        try:
+            val_type = d.pop("type")
+            if val_type == "exist":
+                return Exist(**d)
+            if val_type == "not":
+                return Not(**d)
+            if val_type == "equal":
+                return Equal(**d)
+            if val_type == "regex":
+                return MatchesRegex(**d)
+            if val_type == "any_of":
+                return AnyOf(**d)
+            if val_type == "all_of":
+                return AllOf(**d)
+            if val_type == "in":
+                return In(**d)
+            if val_type == "list_any_of":
+                return ListAnyOf(**d)
+            if val_type == "list_all_of":
+                return ListAllOf(**d)
+            raise ValueError(f"Unknown validator type {val_type}")
+        except KeyError as e:
+            raise ValueError("Missing field 'type' for validator") from e
+        except TypeError as e:
+            raise ValueError("Invalid validator definition") from e
     if isinstance(d, list):
-        val_type = d.pop(0)
-        if val_type == "exist":
-            return Exist(*d)
-        if val_type == "not":
-            return Not(*d)
-        if val_type == "equal":
-            return Equal(*d)
-        if val_type == "regex":
-            return MatchesRegex(*d)
-        if val_type == "any_of":
-            return AnyOf(*d)
-        if val_type == "all_of":
-            return AllOf(*d)
-        if val_type == "in":
-            return In(*d)
-        if val_type == "list_any_of":
-            return ListAnyOf(*d)
-        if val_type == "list_all_of":
-            return ListAllOf(*d)
-        error = f"Unknown validator type {val_type}"
-        raise Exception(error)
-    raise Exception("Validator parsing failed, expected list or dict")
+        try:
+            val_type = d.pop(0)
+            if val_type == "exist":
+                return Exist(*d)
+            if val_type == "not":
+                return Not(*d)
+            if val_type == "equal":
+                return Equal(*d)
+            if val_type == "regex":
+                return MatchesRegex(*d)
+            if val_type == "any_of":
+                return AnyOf(*d)
+            if val_type == "all_of":
+                return AllOf(*d)
+            if val_type == "in":
+                return In(*d)
+            if val_type == "list_any_of":
+                return ListAnyOf(*d)
+            if val_type == "list_all_of":
+                return ListAllOf(*d)
+            raise ValueError(f"Unknown validator type {val_type}")
+        except IndexError as e:
+            raise ValueError("Missing field 'type' for validator") from e
+        except TypeError as e:
+            raise ValueError("Invalid validator definition") from e
+    raise ValueError("Validator parsing failed, expected list or dict")
 
 
 @dataclass
