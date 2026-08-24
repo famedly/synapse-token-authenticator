@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
   "jwcrypto",
   "twisted",
+  "pydantic",
 ]
 version = "0.13.1"
 
