@@ -4,7 +4,7 @@ from typing import Annotated, TypeAlias
 
 from pydantic import BeforeValidator
 
-from synapse_token_authenticator.config_util.base import BaseConfigModel
+from synapse_token_authenticator.config.base import BaseConfigModel
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +69,6 @@ def parse_list_auth(value: list) -> HttpAuth:
 
 
 def parse_auth(value: dict | list | HttpAuth) -> HttpAuth:
-    if isinstance(value, (NoAuth, BasicAuth, BearerAuth)):
-        return value
     try:
         if isinstance(value, dict):
             return parse_dict_auth(value)

@@ -5,13 +5,13 @@ from pydantic import (
     model_validator,
 )
 
-from synapse_token_authenticator.config_util.base import (
+from synapse_token_authenticator.config.base import (
     BaseConfigModel,
     ClaimsMapping,
     JwkSource,
     UsernameType,
 )
-from synapse_token_authenticator.config_util.http_auth import HttpAuthField, NoAuth
+from synapse_token_authenticator.config.http_auth import HttpAuthField, NoAuth
 
 
 class JwtValidationConfig(ClaimsMapping, JwkSource):

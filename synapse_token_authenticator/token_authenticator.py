@@ -28,7 +28,7 @@ from synapse.types import UserID
 from twisted.internet import defer
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
-from synapse_token_authenticator.config_util.http_auth import BasicAuth
+from synapse_token_authenticator.config.http_auth import BasicAuth
 from synapse_token_authenticator.resources.login_metadata import LoginMetadataResource
 from synapse_token_authenticator.resources.metadata import MetadataResource
 from synapse_token_authenticator.resources.public_key import PublicKeysResource

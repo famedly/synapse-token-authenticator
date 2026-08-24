@@ -50,16 +50,7 @@ def _coerce_jwk_set(value: Any) -> JWKSet | JWK | None:
         return JWK.from_json(value)
 
 
-def _coerce_jwk(value: Any) -> JWK | None:
-    if value is None or isinstance(value, JWK):
-        return value
-    if value and isinstance(value, dict):
-        return JWK(**value)
-    raise ValueError("Invalid jwk")
-
-
 JwkSetField = Annotated[JWKSet | JWK | None, BeforeValidator(_coerce_jwk_set)]
-JwkField = Annotated[JWK | None, BeforeValidator(_coerce_jwk)]
 
 
 class JwkSource(BaseConfigModel):

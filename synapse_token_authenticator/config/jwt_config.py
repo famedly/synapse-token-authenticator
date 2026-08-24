@@ -3,7 +3,7 @@ from typing import Self
 
 from pydantic import Field, model_validator
 
-from synapse_token_authenticator.config_util.base import BaseConfigModel, JwtAlgorithm
+from synapse_token_authenticator.config.base import BaseConfigModel, JwtAlgorithm
 
 
 class JwtConfig(BaseConfigModel):

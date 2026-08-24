@@ -4,8 +4,8 @@ import pytest
 from jwcrypto.jwk import JWK, JWKSet
 from pydantic import ValidationError
 
-from synapse_token_authenticator.config_util.base import Exist
-from synapse_token_authenticator.config_util.epa_config import EPaConfig
+from synapse_token_authenticator.config.base import Exist
+from synapse_token_authenticator.config.epa_config import EPaConfig
 from tests import get_enc_jwk, get_jwk_set
 
 
@@ -24,10 +24,10 @@ class TestEPaConfig:
         assert config.validator == Exist()
         assert config.expose_metadata_resource is None
         assert config.registration_enabled is False
-        assert config.enc_jwk is not None and isinstance(config.enc_jwk, JWK)
+        assert isinstance(config.enc_jwk, JWK)
         assert config.enc_jwk_file is None
         assert config.enc_jwks_endpoint == "/.well-known/jwks.json"
-        assert config.jwk_set is not None and isinstance(config.jwk_set, JWKSet)
+        assert isinstance(config.jwk_set, JWKSet)
         assert config.jwk_file is None
         assert config.jwks_endpoint is None
         assert config.localpart_path is None

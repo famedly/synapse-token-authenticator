@@ -2,7 +2,7 @@ import pytest
 from jwcrypto.jwk import JWK
 from pydantic import ValidationError
 
-from synapse_token_authenticator.config_util.jwt_config import JwtConfig
+from synapse_token_authenticator.config.jwt_config import JwtConfig
 
 
 class TestJwtConfig:

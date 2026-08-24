@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from synapse_token_authenticator.config_util.oidc_config import OIDCConfig
+from synapse_token_authenticator.config.oidc_config import OIDCConfig
 
 
 class TestOIDCConfig:

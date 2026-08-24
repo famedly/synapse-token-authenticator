@@ -3,8 +3,8 @@ from jwcrypto.jwk import JWK
 from pydantic import ValidationError
 
 from synapse_token_authenticator.claims_validator import Exist
-from synapse_token_authenticator.config_util.http_auth import NoAuth
-from synapse_token_authenticator.config_util.oauth_config import (
+from synapse_token_authenticator.config.http_auth import NoAuth
+from synapse_token_authenticator.config.oauth_config import (
     IntrospectionValidationConfig,
     JwtValidationConfig,
     NotifyOnRegistration,
@@ -26,7 +26,7 @@ class TestJwtValidationConfig:
         assert config.admin_path is None
         assert config.email_path is None
         assert config.required_scopes is None
-        assert config.jwk_set is not None and isinstance(config.jwk_set, JWK)
+        assert isinstance(config.jwk_set, JWK)
         assert config.jwk_file is None
         assert config.jwks_endpoint is None
 

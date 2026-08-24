@@ -1,4 +1,4 @@
-from synapse_token_authenticator.config_util.base import BaseConfigModel
+from synapse_token_authenticator.config.base import BaseConfigModel
 
 
 class OIDCConfig(BaseConfigModel):

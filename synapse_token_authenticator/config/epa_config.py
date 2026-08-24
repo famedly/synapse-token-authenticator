@@ -1,15 +1,25 @@
-from typing import Any, Self
+from typing import Annotated, Any, Self
 
 from jwcrypto.jwk import JWK
-from pydantic import model_validator
+from pydantic import BeforeValidator, model_validator
 
-from synapse_token_authenticator.config_util.base import (
-    JwkField,
+from synapse_token_authenticator.config.base import (
     JwkSetField,
     JwkSource,
     Path,
     ValidatorMapping,
 )
+
+
+def _coerce_jwk(value: Any) -> JWK | None:
+    if not value:
+        return None
+    if value and isinstance(value, dict):
+        return JWK(**value)
+    raise ValueError("Invalid jwk")
+
+
+JwkField = Annotated[JWK | None, BeforeValidator(_coerce_jwk)]
 
 
 class EPaConfig(ValidatorMapping, JwkSource):

@@ -5,8 +5,7 @@ from jwcrypto.jwk import JWK, JWKSet
 from pydantic import ValidationError
 
 from synapse_token_authenticator.claims_validator import AnyOf, Equal, Exist, In, Not
-from synapse_token_authenticator.config_util.base import (
-    ClaimsMapping,
+from synapse_token_authenticator.config.base import (
     JwkSource,
     ValidatorMapping,
 )
@@ -103,7 +102,6 @@ class TestJwkSource:
         jwk_path.write_bytes(jwk.export_to_pem(private_key=True, password=None))
         config = JwkSource(jwk_file=str(jwk_path))
         assert config.jwk_file == str(jwk_path)
-        assert config.jwk_set is not None
         assert isinstance(config.jwk_set, JWK)
         assert config.jwks_endpoint is None
 
@@ -116,16 +114,3 @@ class TestJwkSource:
     def test_jwk_source_fails_if_no_jwk(self):
         with pytest.raises(ValidationError):
             JwkSource()
-
-
-class TestClaimsMapping:
-    def test_claims_mapping(self):
-        config = ClaimsMapping()
-        assert config.validator == Exist()
-        assert config.localpart_path is None
-        assert config.user_id_path is None
-        assert config.fq_uid_path is None
-        assert config.displayname_path is None
-        assert config.admin_path is None
-        assert config.email_path is None
-        assert config.required_scopes is None

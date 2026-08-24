@@ -1,7 +1,7 @@
-from synapse_token_authenticator.config_util.epa_config import EPaConfig
-from synapse_token_authenticator.config_util.jwt_config import JwtConfig
-from synapse_token_authenticator.config_util.oauth_config import OAuthConfig
-from synapse_token_authenticator.config_util.oidc_config import OIDCConfig
+from synapse_token_authenticator.config.epa_config import EPaConfig
+from synapse_token_authenticator.config.jwt_config import JwtConfig
+from synapse_token_authenticator.config.oauth_config import OAuthConfig
+from synapse_token_authenticator.config.oidc_config import OIDCConfig
 
 
 class TokenAuthenticatorConfig:

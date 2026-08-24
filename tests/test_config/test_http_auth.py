@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
-from synapse_token_authenticator.config_util.http_auth import (
+from synapse_token_authenticator.config.http_auth import (
     BasicAuth,
     BearerAuth,
     NoAuth,
@@ -12,8 +12,6 @@ from synapse_token_authenticator.config_util.http_auth import (
     parse_dict_auth,
     parse_list_auth,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class TestHttpAuth:
