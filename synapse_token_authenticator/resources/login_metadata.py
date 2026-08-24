@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 from twisted.web import resource
 
-from synapse_token_authenticator.config import (
+from synapse_token_authenticator.config_util.oidc_config import (
     OIDCConfig,
 )
 

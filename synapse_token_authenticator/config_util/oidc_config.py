@@ -1,9 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from synapse_token_authenticator.config_util.base import BaseConfigModel
 
 
-class OIDCConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
-
+class OIDCConfig(BaseConfigModel):
     issuer: str
     client_id: str
     client_secret: str
