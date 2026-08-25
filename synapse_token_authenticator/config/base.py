@@ -154,3 +154,7 @@ class ClaimsMapping(ValidatorMapping):
     admin_path: PathList | None = None
     email_path: Path | None = None
     required_scopes: str | list[str] | None = None
+
+
+class ExposeMetadataResource(BaseConfigModel):
+    name: str

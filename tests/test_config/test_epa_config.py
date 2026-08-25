@@ -97,7 +97,9 @@ class TestEPaConfig:
         assert config.iss == "https://example.com"
         assert config.resource_id == "https://example.com"
         assert isinstance(config.validator, In)
-        assert config.expose_metadata_resource == {"name": "expose_metadata_resource"}
+        assert config.expose_metadata_resource.model_dump() == {
+            "name": "expose_metadata_resource"
+        }
         assert config.registration_enabled is True
         assert isinstance(config.enc_jwk, JWK)
         assert isinstance(config.jwk_set, JWKSet)

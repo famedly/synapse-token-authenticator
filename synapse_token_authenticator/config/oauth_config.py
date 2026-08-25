@@ -1,4 +1,4 @@
-from typing import Any, Self
+from typing import Self
 
 from pydantic import (
     Field,
@@ -8,6 +8,7 @@ from pydantic import (
 from synapse_token_authenticator.config.base import (
     BaseConfigModel,
     ClaimsMapping,
+    ExposeMetadataResource,
     JwkSource,
     UsernameType,
 )
@@ -34,7 +35,7 @@ class OAuthConfig(BaseConfigModel):
     introspection_validation: IntrospectionValidationConfig | None = None
     username_type: UsernameType | None = None
     notify_on_registration: NotifyOnRegistration | None = None
-    expose_metadata_resource: Any = None
+    expose_metadata_resource: ExposeMetadataResource | None = None
     registration_enabled: bool = False
     check_external_id: bool = True
 

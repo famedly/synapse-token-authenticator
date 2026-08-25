@@ -1,9 +1,10 @@
-from typing import Annotated, Any, Self
+from typing import Annotated, Self
 
 from jwcrypto.jwk import JWK
 from pydantic import BeforeValidator, model_validator
 
 from synapse_token_authenticator.config.base import (
+    ExposeMetadataResource,
     JwkSetField,
     JwkSource,
     Path,
@@ -27,7 +28,7 @@ JwkField = Annotated[JWK | None, BeforeValidator(_coerce_jwk)]
 class EPaConfig(ValidatorMapping, JwkSource):
     iss: str
     resource_id: str
-    expose_metadata_resource: Any = None
+    expose_metadata_resource: ExposeMetadataResource | None = None
     registration_enabled: bool = False
     enc_jwk: JwkField = None
     enc_jwk_file: str | None = None

@@ -207,7 +207,7 @@ class TestOAuthConfig:
             username="u", password="p"
         )
         assert config.notify_on_registration.interrupt_on_error is False
-        assert config.expose_metadata_resource == {
+        assert config.expose_metadata_resource.model_dump() == {
             "name": "com.famedly.login.token.oauth"
         }
         assert config.registration_enabled is True
