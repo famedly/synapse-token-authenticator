@@ -114,3 +114,41 @@ class TestJwkSource:
     def test_jwk_source_fails_if_no_jwk(self):
         with pytest.raises(ValidationError):
             JwkSource()
+
+    def test_jwk_source_fails_with_emtpy_string(self):
+        with pytest.raises(ValidationError):
+            JwkSource(jwk_set="")
+
+    def test_jwk_source_fails_with_emtpy_dict(self):
+        with pytest.raises(ValidationError):
+            JwkSource(jwk_set={})
+
+    def test_jwk_source_accepts_empty_keys_dict(self):
+        config = JwkSource(jwk_set={"keys": []})
+        assert isinstance(config.jwk_set, JWKSet)
+        assert list(config.jwk_set) == []
+
+    def test_jwk_source_accepts_invalid_jwk_set_in_dict(self):
+        with pytest.raises(ValidationError):
+            JwkSource(jwk_set={"kty": "oct"})
+
+    def test_jwk_source_accepts_invalid_jwk_set_in_json_string(self):
+        with pytest.raises(ValidationError):
+            JwkSource(jwk_set='{"kty": "oct"}')
+
+    def test_jwk_source_accepts_empty_keys_json_string(self):
+        config = JwkSource(jwk_set='{"keys": []}')
+        assert isinstance(config.jwk_set, JWKSet)
+        assert list(config.jwk_set) == []
+
+    def test_jwk_source_passes_through_empty_jwk_set_instance(self):
+        empty = JWKSet()
+        config = JwkSource(jwk_set=empty)
+        assert config.jwk_set is empty
+
+    def test_jwk_source_rejects_list_even_with_jwks_endpoint(self):
+        with pytest.raises(ValidationError, match="Invalid jwk_set"):
+            JwkSource(
+                jwk_set=[{"kty": "oct", "k": "YQ"}],
+                jwks_endpoint="https://example.com/jwks",
+            )

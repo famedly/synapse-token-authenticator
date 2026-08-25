@@ -184,7 +184,10 @@ class TestOAuthConfig:
                 "auth": {"type": "basic", "username": "u", "password": "p"},
                 "interrupt_on_error": False,
             },
-            expose_metadata_resource={"name": "com.famedly.login.token.oauth"},
+            expose_metadata_resource={
+                "name": "com.famedly.login.token.oauth",
+                "something": "else",
+            },
             registration_enabled=True,
             check_external_id=False,
         )
@@ -208,10 +211,24 @@ class TestOAuthConfig:
         )
         assert config.notify_on_registration.interrupt_on_error is False
         assert config.expose_metadata_resource.model_dump() == {
-            "name": "com.famedly.login.token.oauth"
+            "name": "com.famedly.login.token.oauth",
+            "something": "else",
         }
         assert config.registration_enabled is True
         assert config.check_external_id is False
+
+    def test_oauth_config_invalid_expose_metadata_resource(self):
+        jwk = get_jwk().export(private_key=True)
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(jwk_set=jwk),
+                introspection_validation=IntrospectionValidationConfig(
+                    endpoint="https://example.com"
+                ),
+                username_type="user_id",
+                notify_on_registration=NotifyOnRegistration(url="https://example.com"),
+                expose_metadata_resource={"no_name": "in-metadata-resource"},
+            )
 
     def test_oauth_config_valid_username_types(self):
         jwk = get_jwk().export(private_key=True)

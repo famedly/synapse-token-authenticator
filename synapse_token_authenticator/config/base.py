@@ -1,7 +1,7 @@
 import json
-from typing import Annotated, Any, Literal, Self, TypeAlias, cast
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
-from jwcrypto.jwk import JWK, JWKSet
+from jwcrypto.jwk import JWK, InvalidJWKType, InvalidJWKValue, JWKSet
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 from synapse_token_authenticator.claims_validator import (
@@ -98,26 +98,34 @@ class ValidatorMapping(BaseConfigModel):
     validator: ValidatorField = Field(default_factory=Exist)
 
 
-def _coerce_jwk_set(value: str | dict | JWK | JWKSet | None) -> JWKSet | JWK | None:
-    if not value:
+def _coerce_jwk_set(value: Any) -> JWKSet | JWK | None:
+    if value is None:
         return None
-    if isinstance(value, str):
-        # Pre-parse the JSON to find out if a "keys" object is properly inside. Using a
-        # substring match on "keys" may yield incorrect results if the actual word
-        # "keys" was part of something else. Unfortunately, can not then dump that
-        # pre-parsed JSON right into the JWKSet itself, as further subprocessing of the
-        # JSON loads the correct JWK objects for us.
-        if "keys" in json.loads(value):
-            return JWKSet.from_json(value)
-        return JWK.from_json(value)
+    # JWK and JWKSet is also dict. Handle before the plain-dict branch.
     if isinstance(value, (JWK, JWKSet)):
         return value
-    if isinstance(value, dict):
-        # mypy keeps JWK|JWKSet in the union because they subclass dict.
-        data = cast(dict[str, Any], value)
-        if "keys" in data:
-            return JWKSet(**data)
-        return JWK(**data)
+    try:
+        if isinstance(value, str):
+            # Pre-parse the JSON to find out if a "keys" object exists(Not a substring
+            # match on "keys"). `from_json()` re-parses the JSON and builds JWK objects.
+            data = json.loads(value)
+            if "keys" in data:
+                return JWKSet.from_json(value)
+            return JWK.from_json(value)
+        if isinstance(value, dict):
+            # JWK(**{}) succeeds but is not a usable key. Reject empty config.
+            if not value:
+                raise ValueError("Invalid jwk_set")
+            if "keys" in value:
+                # from_json accepts RFC list-of-dicts (and {"keys": []}); JWKSet(**)
+                # does not.
+                return JWKSet.from_json(json.dumps(value))
+            return JWK(**value)
+    except ValueError:
+        raise
+    except (InvalidJWKValue, InvalidJWKType, json.JSONDecodeError, TypeError) as e:
+        raise ValueError("Invalid jwk_set") from e
+    raise ValueError("Invalid jwk_set")
 
 
 JwkSetField = Annotated[JWKSet | JWK | None, BeforeValidator(_coerce_jwk_set)]
@@ -135,7 +143,8 @@ class JwkSource(BaseConfigModel):
 
     @model_validator(mode="after")
     def resolve_jwk_source(self) -> Self:
-        if self.jwk_set:
+        # Use identity, not truthiness: empty JWKSet is a valid explicit jwk_set.
+        if self.jwk_set is not None:
             return self
         elif self.jwk_file:
             with open(self.jwk_file, "rb") as f:
@@ -156,5 +165,7 @@ class ClaimsMapping(ValidatorMapping):
     required_scopes: str | list[str] | None = None
 
 
-class ExposeMetadataResource(BaseConfigModel):
+class ExposeMetadataResource(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     name: str
