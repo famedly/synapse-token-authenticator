@@ -11,9 +11,11 @@ from synapse_token_authenticator.config.base import (
 )
 
 
-def _coerce_jwk(value: Any) -> JWK | None:
+def _coerce_jwk(value: JWK | dict | None) -> JWK | None:
     if not value:
         return None
+    if isinstance(value, JWK):
+        return value
     if value and isinstance(value, dict):
         return JWK(**value)
     raise ValueError("Invalid jwk")

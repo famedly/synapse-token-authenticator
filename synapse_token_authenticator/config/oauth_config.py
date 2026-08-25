@@ -39,7 +39,7 @@ class OAuthConfig(BaseConfigModel):
     check_external_id: bool = True
 
     @model_validator(mode="after")
-    def validate(self) -> Self:
+    def validate_jwk_or_introspection(self) -> Self:
         if not (self.jwt_validation or self.introspection_validation):
             raise ValueError(
                 "Neither jwt_validation nor introspection_validation was specified"

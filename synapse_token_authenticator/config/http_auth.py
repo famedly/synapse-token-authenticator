@@ -2,20 +2,22 @@ import logging
 from base64 import b64encode
 from typing import Annotated, TypeAlias
 
-from pydantic import BeforeValidator
-
-from synapse_token_authenticator.config.base import BaseConfigModel
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 logger = logging.getLogger(__name__)
 
 
-class NoAuth(BaseConfigModel):
+class BaseAuthModel(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+
+class NoAuth(BaseAuthModel):
 
     def header_map(self) -> dict[bytes, list[bytes]]:
         return {}
 
 
-class BasicAuth(BaseConfigModel):
+class BasicAuth(BaseAuthModel):
     username: str
     password: str
 
@@ -26,7 +28,7 @@ class BasicAuth(BaseConfigModel):
         return {b"Authorization": [b"Basic " + token]}
 
 
-class BearerAuth(BaseConfigModel):
+class BearerAuth(BaseAuthModel):
     token: str
 
     def header_map(self) -> dict[bytes, list[bytes]]:
@@ -69,6 +71,8 @@ def parse_list_auth(value: list) -> HttpAuth:
 
 
 def parse_auth(value: dict | list | HttpAuth) -> HttpAuth:
+    if isinstance(value, (NoAuth, BasicAuth, BearerAuth)):
+        return value
     try:
         if isinstance(value, dict):
             return parse_dict_auth(value)
