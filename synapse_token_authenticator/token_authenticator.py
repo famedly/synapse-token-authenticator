@@ -21,7 +21,7 @@ from typing import Any
 
 from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
-from jwcrypto.jwk import JWKSet
+from jwcrypto.jwk import JWK, JWKSet
 from synapse.api.errors import HttpResponseException, SynapseError
 from synapse.module_api import JsonDict, LoginResponse, ModuleApi
 from synapse.types import UserID
@@ -120,6 +120,32 @@ class TokenAuthenticator:
             return None
         return login_dict["token"]
 
+    def _veryfiy_jwt(
+        self,
+        token: str,
+        key: JWKSet | JWK,
+        check_claims: dict | None = None,
+        algs: list[str] | None = None,
+        expected_type: str | None = None,
+    ) -> jwt.JWT | None:
+        try:
+            return jwt.JWT(
+                jwt=token,
+                key=key,
+                check_claims=check_claims,
+                algs=algs,
+                expected_type=expected_type,
+            )
+        except ValueError as e:
+            logger.info("Unrecognized token %s", e)
+            return None
+        except JWException as e:
+            logger.info("Invalid token %s", e)
+            return None
+        except TypeError as e:
+            logger.info("Invalid token type %s", e)
+            return None
+
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
@@ -132,20 +158,16 @@ class TokenAuthenticator:
         check_claims: dict = {}
         if self.config.jwt.require_expiry:
             check_claims["exp"] = None
-        try:
-            # OK, let's verify the token
-            token = jwt.JWT(
-                jwt=token_data,
-                key=self.key,
-                check_claims=check_claims,
-                algs=[self.config.jwt.algorithm],
-            )
-        except ValueError as e:
-            logger.info("Unrecognized token %s", e)
+
+        token = self._veryfiy_jwt(
+            token=token_data,
+            key=self.key,
+            check_claims=check_claims,
+            algs=[self.config.jwt.algorithm],
+        )
+        if token is None:
             return None
-        except JWException as e:
-            logger.info("Invalid token %s", e)
-            return None
+
         payload = json_decode(token.claims)
         if "sub" not in payload:
             logger.info("Missing user_id field")
@@ -310,17 +332,14 @@ class TokenAuthenticator:
                     config.jwt_validation.jwks_endpoint,
                 )
                 config.jwt_validation.jwk_set = JWKSet.from_json(jwks_json)
-            try:
-                token = jwt.JWT(
-                    jwt=token_data,
-                    key=config.jwt_validation.jwk_set,
-                    check_claims=check_claims,
-                )
-            except ValueError as e:
-                logger.info("Unrecognized token %s", e)
-                return None
-            except JWException as e:
-                logger.info("Invalid token %s", e)
+
+            assert config.jwt_validation.jwk_set is not None
+            token = self._veryfiy_jwt(
+                token=token_data,
+                key=config.jwt_validation.jwk_set,
+                check_claims=check_claims,
+            )
+            if token is None:
                 return None
 
             jwt_claims = json_decode(token.claims)
@@ -601,21 +620,19 @@ class TokenAuthenticator:
             "iss": config.iss,
             "exp": None,
         }
-        try:
-            enc_token = jwt.JWT(key=config.enc_jwk, jwt=token_data, expected_type="JWE")
-            token = jwt.JWT(
-                jwt=enc_token.claims,
-                key=config.jwk_set,
-                check_claims=check_claims,
-            )
-        except ValueError as e:
-            logger.info("Unrecognized token %s", e)
+
+        assert config.enc_jwk is not None
+        enc_token = self._veryfiy_jwt(
+            token=token_data, key=config.enc_jwk, expected_type="JWE"
+        )
+        if enc_token is None:
             return None
-        except JWException as e:
-            logger.info("Invalid token %s", e)
-            return None
-        except TypeError as e:
-            logger.info("Invalid token type %s", e)
+
+        assert config.jwk_set is not None
+        token = self._veryfiy_jwt(
+            token=enc_token.claims, key=config.jwk_set, check_claims=check_claims
+        )
+        if token is None:
             return None
 
         jwt_header = json_decode(token.header)
