@@ -22,7 +22,7 @@ from typing import Any
 from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
 from jwcrypto.jwk import JWKSet
-from synapse.api.errors import HttpResponseException
+from synapse.api.errors import HttpResponseException, SynapseError
 from synapse.module_api import JsonDict, LoginResponse, ModuleApi
 from synapse.types import UserID
 from twisted.internet import defer
@@ -33,6 +33,7 @@ from synapse_token_authenticator.resources.login_metadata import LoginMetadataRe
 from synapse_token_authenticator.resources.metadata import MetadataResource
 from synapse_token_authenticator.resources.public_key import PublicKeysResource
 from synapse_token_authenticator.utils import (
+    ClaimsMismatchError,
     all_list_elems_are_equal_return_the_elem,
     get_oidp_metadata,
     get_path_in_dict,
@@ -419,7 +420,7 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except (ClaimsMismatchError, SynapseError) as e:
             logger.info("%s", e)
             return None
 
@@ -443,7 +444,7 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except ClaimsMismatchError as e:
             logger.info("%s", e)
             return None
 
@@ -457,7 +458,7 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except ClaimsMismatchError as e:
             logger.info("%s", e)
             return None
 
@@ -471,7 +472,7 @@ class TokenAuthenticator:
                     ),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except ClaimsMismatchError as e:
             logger.info("%s", e)
             return None
 
@@ -482,7 +483,7 @@ class TokenAuthenticator:
                     get_path_in_dict("sub", introspection_claims),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except ClaimsMismatchError as e:
             logger.info(e)
             return None
         if not external_id:
@@ -496,7 +497,7 @@ class TokenAuthenticator:
                     get_path_in_dict("iss", introspection_claims),
                 ]
             )
-        except Exception as e:  # noqa: BLE001
+        except ClaimsMismatchError as e:
             logger.info(e)
             return None
         if not auth_provider:

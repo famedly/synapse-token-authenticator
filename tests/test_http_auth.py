@@ -180,7 +180,7 @@ class TestHttpAuthConfigCoercion:
     def test_introspection_auth_error_logs_config_class(self, caplog):
         with (
             caplog.at_level(logging.ERROR),
-            pytest.raises(Exception),
+            pytest.raises(ValueError),
         ):
             TokenAuthenticatorConfig(
                 {
@@ -200,7 +200,7 @@ class TestHttpAuthConfigCoercion:
     def test_notify_on_registration_auth_error_logs_config_class(self, caplog):
         with (
             caplog.at_level(logging.ERROR),
-            pytest.raises(Exception),
+            pytest.raises(ValueError),
         ):
             TokenAuthenticatorConfig(
                 {
