@@ -108,17 +108,26 @@ class TokenAuthenticator:
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
-    async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: JsonDict
-    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
+    def _acquire_token_data(
+        self, login_type: str, expected: str, login_dict: JsonDict
+    ) -> str | None:
         logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token":
+        if login_type != expected:
             logger.info("Wrong login type")
             return None
         if "token" not in login_dict:
             logger.info("Missing token")
             return None
-        token = login_dict["token"]
+        return login_dict["token"]
+
+    async def check_jwt_auth(
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token", login_dict
+        )
+        if token_data is None:
+            return None
 
         check_claims: dict = {}
         if self.config.jwt.require_expiry:
@@ -126,7 +135,7 @@ class TokenAuthenticator:
         try:
             # OK, let's verify the token
             token = jwt.JWT(
-                jwt=token,
+                jwt=token_data,
                 key=self.key,
                 check_claims=check_claims,
                 algs=[self.config.jwt.algorithm],
@@ -196,21 +205,22 @@ class TokenAuthenticator:
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.oidc":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.oidc", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         client = self.api._hs.get_proxied_http_client()
         oidc = self.config.oidc
         oidc_metadata = await get_oidp_metadata(oidc.issuer, client)
 
         # Further validation using token introspection
-        data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
+        data = {
+            "token": token_data,
+            "token_type_hint": "access_token",
+            "scope": "openid",
+        }
 
         try:
             introspection_resp = await client.post_urlencoded_get_json(
@@ -281,14 +291,11 @@ class TokenAuthenticator:
         self, username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.oauth
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.oauth":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.oauth", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         client = self.api._hs.get_proxied_http_client()
 
@@ -305,7 +312,7 @@ class TokenAuthenticator:
                 config.jwt_validation.jwk_set = JWKSet.from_json(jwks_json)
             try:
                 token = jwt.JWT(
-                    jwt=token,
+                    jwt=token_data,
                     key=config.jwt_validation.jwk_set,
                     check_claims=check_claims,
                 )
@@ -340,7 +347,7 @@ class TokenAuthenticator:
             try:
                 introspection_claims = await client.post_urlencoded_get_json(
                     config.introspection_validation.endpoint,
-                    {"token": token},
+                    {"token": token_data},
                     headers=config.introspection_validation.auth.header_map(),
                 )
             except HttpResponseException as e:
@@ -577,14 +584,11 @@ class TokenAuthenticator:
         self, _username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.epa
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.epa":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.epa", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         if config.jwks_endpoint:
             client = self.api._hs.get_proxied_http_client()
@@ -598,7 +602,7 @@ class TokenAuthenticator:
             "exp": None,
         }
         try:
-            enc_token = jwt.JWT(key=config.enc_jwk, jwt=token, expected_type="JWE")
+            enc_token = jwt.JWT(key=config.enc_jwk, jwt=token_data, expected_type="JWE")
             token = jwt.JWT(
                 jwt=enc_token.claims,
                 key=config.jwk_set,
