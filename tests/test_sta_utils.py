@@ -1,11 +1,22 @@
+from dataclasses import dataclass
+
 import pytest
 
 from synapse_token_authenticator.utils import (
     all_list_elems_are_equal_return_the_elem,
+    get_claim_from_validation,
     get_path_in_dict,
+    get_reconcile_claim_paths,
+    get_reconciled_claim,
     if_not_none,
     validate_scopes,
 )
+
+
+@dataclass
+class SimpleValidationConfig:
+    localpart_path: str | list[str] | None = None
+    displayname_path: str | list[str] | None = None
 
 
 def test_get_path_in_dict():
@@ -118,3 +129,119 @@ def test_all_list_elems_are_equal_return_the_elem():
     assert all_list_elems_are_equal_return_the_elem([3]) == 3
     with pytest.raises(Exception):
         all_list_elems_are_equal_return_the_elem([3, 4])
+
+
+def test_get_claim_from_validation_returns_none_without_config():
+    claims = {"preferred_username": "user"}
+    assert get_claim_from_validation(claims, None, "localpart_path") is None
+
+
+def test_get_claim_from_validation_returns_none_without_path():
+    claims = {"preferred_username": "user"}
+    config = SimpleValidationConfig(localpart_path=None)
+    assert get_claim_from_validation(claims, config, "localpart_path") is None
+
+
+def test_get_claim_from_validation_reads_configured_path():
+    claims = {"preferred_username": "user"}
+    config = SimpleValidationConfig(localpart_path="preferred_username")
+    assert get_claim_from_validation(claims, config, "localpart_path") == "user"
+
+
+def test_get_claim_from_validation_returns_none_when_claim_missing():
+    claims = {"other": "value"}
+    config = SimpleValidationConfig(localpart_path="preferred_username")
+    assert get_claim_from_validation(claims, config, "localpart_path") is None
+
+
+def test_get_claim_from_validation_supports_nested_path():
+    claims = {"user": {"name": "user"}}
+    config = SimpleValidationConfig(localpart_path=["user", "name"])
+    assert get_claim_from_validation(claims, config, "localpart_path") == "user"
+
+
+def test_get_reconciled_claim_returns_none_when_both_absent():
+    jwt_claims = {"preferred_username": "user"}
+    introspection_claims = {"preferred_username": "user"}
+    assert (
+        get_reconciled_claim(
+            jwt_claims,
+            introspection_claims,
+            None,
+            None,
+            "localpart_path",
+        )
+        is None
+    )
+
+
+def test_get_reconciled_claim_uses_single_source():
+    jwt_claims = {"preferred_username": "user"}
+    introspection_claims: dict = {}
+    jwt_config = SimpleValidationConfig(localpart_path="preferred_username")
+    assert (
+        get_reconciled_claim(
+            jwt_claims,
+            introspection_claims,
+            jwt_config,
+            None,
+            "localpart_path",
+        )
+        == "user"
+    )
+
+
+def test_get_reconciled_claim_requires_agreement():
+    jwt_claims = {"preferred_username": "user"}
+    introspection_claims = {"preferred_username": "user"}
+    jwt_config = SimpleValidationConfig(localpart_path="preferred_username")
+    introspection_config = SimpleValidationConfig(localpart_path="preferred_username")
+    assert (
+        get_reconciled_claim(
+            jwt_claims,
+            introspection_claims,
+            jwt_config,
+            introspection_config,
+            "localpart_path",
+        )
+        == "user"
+    )
+
+
+def test_get_reconciled_claim_raises_on_mismatch():
+    jwt_claims = {"preferred_username": "user"}
+    introspection_claims = {"preferred_username": "someone_else"}
+    jwt_config = SimpleValidationConfig(localpart_path="preferred_username")
+    introspection_config = SimpleValidationConfig(localpart_path="preferred_username")
+    with pytest.raises(Exception, match="are not equal"):
+        get_reconciled_claim(
+            jwt_claims,
+            introspection_claims,
+            jwt_config,
+            introspection_config,
+            "localpart_path",
+        )
+
+
+def test_get_reconcile_claim_paths_returns_none_when_both_missing():
+    assert get_reconcile_claim_paths({}, {}, "sub") is None
+
+
+def test_get_reconcile_claim_paths_uses_single_source():
+    assert get_reconcile_claim_paths({"sub": "user-123"}, {}, "sub") == "user-123"
+
+
+def test_get_reconcile_claim_paths_requires_agreement():
+    jwt_claims = {"iss": "https://issuer.example"}
+    introspection_claims = {"iss": "https://issuer.example"}
+    assert (
+        get_reconcile_claim_paths(jwt_claims, introspection_claims, "iss")
+        == "https://issuer.example"
+    )
+
+
+def test_get_reconcile_claim_paths_raises_on_mismatch():
+    jwt_claims = {"iss": "https://issuer.example"}
+    introspection_claims = {"iss": "something else"}
+    with pytest.raises(Exception, match="are not equal"):
+        get_reconcile_claim_paths(jwt_claims, introspection_claims, "iss")

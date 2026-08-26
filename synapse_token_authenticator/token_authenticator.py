@@ -35,9 +35,10 @@ from synapse_token_authenticator.resources.public_key import PublicKeysResource
 from synapse_token_authenticator.utils import (
     ClaimsMismatchError,
     all_list_elems_are_equal_return_the_elem,
+    get_claim_from_validation,
     get_oidp_metadata,
-    get_path_in_dict,
-    if_not_none,
+    get_reconcile_claim_paths,
+    get_reconciled_claim,
     validate_scopes,
 )
 
@@ -145,6 +146,30 @@ class TokenAuthenticator:
         except TypeError as e:
             logger.info("Invalid token type %s", e)
             return None
+
+    def _localpart_from_username(
+        self, username: str, username_type: str | None
+    ) -> str | None:
+        if username_type == "localpart":
+            return username
+        if username_type == "fq_uid":
+            return UserID.from_string(username).localpart
+        if username_type == "user_id":
+            return UserID.from_string(
+                self.api.get_qualified_user_id(username)
+            ).localpart
+        return None
+
+    def _fq_uid_from_username(
+        self, username: str, username_type: str | None
+    ) -> str | None:
+        if username_type == "fq_uid":
+            return username
+        if username_type == "user_id":
+            return self.api.get_qualified_user_id(username)
+        if username_type == "localpart":
+            return self.api.get_qualified_user_id(username)
+        return None
 
     async def check_jwt_auth(
         self, username: str, login_type: str, login_dict: JsonDict
@@ -304,8 +329,6 @@ class TokenAuthenticator:
             logger.info("User doesn't exist, registering it...")
             await self.api.register_user(user_id.localpart)
 
-        user_id_str = self.api.get_qualified_user_id(username)
-
         logger.info("All done and valid, logging in!")
         return (user_id_str, None)
 
@@ -394,56 +417,41 @@ class TokenAuthenticator:
                 return None
 
         # getting localpart and fully qualified user_id, validate all sources for equality
-
-        def get_from_set(set_):
-            return if_not_none(lambda path: get_path_in_dict(path, set_))
-
         username_type = config.username_type
 
         try:
-            get_localpart_mb = if_not_none(lambda x: x.localpart_path)
-
+            # get localpart from each source
+            jwt_localpart = get_claim_from_validation(
+                jwt_claims, config.jwt_validation, "localpart_path"
+            )
+            introspection_localpart = get_claim_from_validation(
+                introspection_claims, config.introspection_validation, "localpart_path"
+            )
+            username_localpart = self._localpart_from_username(
+                username, config.username_type
+            )
+            # reconcile localpart from different sources
             localpart = all_list_elems_are_equal_return_the_elem(
                 [
-                    get_from_set(jwt_claims)(get_localpart_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_localpart_mb(config.introspection_validation)
-                    ),
-                    username if username_type == "localpart" else None,
-                    (
-                        UserID.from_string(username).localpart
-                        if username_type == "fq_uid"
-                        else None
-                    ),
-                    (
-                        UserID.from_string(
-                            self.api.get_qualified_user_id(username)
-                        ).localpart
-                        if username_type == "user_id"
-                        else None
-                    ),
+                    jwt_localpart,
+                    introspection_localpart,
+                    username_localpart,
                 ]
             )
-
-            get_fq_uid_mb = if_not_none(lambda x: x.fq_uid_path)
-
+            # get fq_uid from each source
+            jwt_fq_uid = get_claim_from_validation(
+                jwt_claims, config.jwt_validation, "fq_uid_path"
+            )
+            introspection_fq_uid = get_claim_from_validation(
+                introspection_claims, config.introspection_validation, "fq_uid_path"
+            )
+            username_fq_uid = self._fq_uid_from_username(username, username_type)
+            # reconcile fq_uid from different sources
             fully_qualified_uid = all_list_elems_are_equal_return_the_elem(
                 [
-                    get_from_set(jwt_claims)(get_fq_uid_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_fq_uid_mb(config.introspection_validation)
-                    ),
-                    username if username_type == "fq_uid" else None,
-                    (
-                        self.api.get_qualified_user_id(username)
-                        if username_type == "user_id"
-                        else None
-                    ),
-                    (
-                        self.api.get_qualified_user_id(username)
-                        if username_type == "localpart"
-                        else None
-                    ),
+                    jwt_fq_uid,
+                    introspection_fq_uid,
+                    username_fq_uid,
                 ]
             )
         except (ClaimsMismatchError, SynapseError) as e:
@@ -461,53 +469,34 @@ class TokenAuthenticator:
             fully_qualified_uid = self.api.get_qualified_user_id(localpart)
 
         try:
-            get_displayname_mb = if_not_none(lambda x: x.displayname_path)
-            displayname = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_displayname_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_displayname_mb(config.introspection_validation)
-                    ),
-                ]
+            displayname = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "displayname_path",
+            )
+            admin = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "admin_path",
+            )
+            email = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "email_path",
             )
         except ClaimsMismatchError as e:
             logger.info("%s", e)
             return None
 
         try:
-            get_admin_mb = if_not_none(lambda x: x.admin_path)
-            admin = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_admin_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_admin_mb(config.introspection_validation)
-                    ),
-                ]
-            )
-        except ClaimsMismatchError as e:
-            logger.info("%s", e)
-            return None
-
-        try:
-            get_email_mb = if_not_none(lambda x: x.email_path)
-            email = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_email_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_email_mb(config.introspection_validation)
-                    ),
-                ]
-            )
-        except ClaimsMismatchError as e:
-            logger.info("%s", e)
-            return None
-
-        try:
-            external_id = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_path_in_dict("sub", jwt_claims),
-                    get_path_in_dict("sub", introspection_claims),
-                ]
+            external_id = get_reconcile_claim_paths(
+                jwt_claims, introspection_claims, "sub"
             )
         except ClaimsMismatchError as e:
             logger.info(e)
@@ -517,11 +506,8 @@ class TokenAuthenticator:
             return None
 
         try:
-            auth_provider = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_path_in_dict("iss", jwt_claims),
-                    get_path_in_dict("iss", introspection_claims),
-                ]
+            auth_provider = get_reconcile_claim_paths(
+                jwt_claims, introspection_claims, "iss"
             )
         except ClaimsMismatchError as e:
             logger.info(e)
@@ -662,16 +648,8 @@ class TokenAuthenticator:
             )
             return None
 
-        localpart = (
-            get_path_in_dict(config.localpart_path, jwt_claims)
-            if config.localpart_path
-            else None
-        )
-        displayname = (
-            get_path_in_dict(config.displayname_path, jwt_claims)
-            if config.displayname_path
-            else None
-        )
+        localpart = get_claim_from_validation(jwt_claims, config, "localpart_path")
+        displayname = get_claim_from_validation(jwt_claims, config, "displayname_path")
 
         if not localpart:
             logger.info("Missing localpart")
