@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
   "jwcrypto",
   "twisted",
+  "pydantic",
 ]
 version = "0.13.1"
 
@@ -73,7 +74,8 @@ dependencies = [
   "types-jwcrypto",
   "types-requests",
   "types-pyOpenSSL",
-  "attrs"
+  "attrs",
+  "pydantic",
 ]
 
 [tool.hatch.envs.hatch-static-analysis.scripts]
@@ -126,7 +128,8 @@ python_version = "3.11"
 ignore_missing_imports = true
 install_types = true
 plugins = [
-  "mypy_zope:plugin"
+  "mypy_zope:plugin",
+  "pydantic.mypy",
 ]
 files = ["synapse_token_authenticator", "tests"]
 
