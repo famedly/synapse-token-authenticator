@@ -25,6 +25,10 @@ from typing import Any, Protocol
 from synapse_token_authenticator.utils import get_path_in_dict
 
 
+class InvalidClaimsValidatorError(ValueError):
+    """Invalid claims validator definition."""
+
+
 class Validator(Protocol):
     def validate(self, x: Any) -> bool: ...
 
@@ -99,8 +103,7 @@ class In:
 
     def __post_init__(self):
         if not self.path:
-            error = "Path list is empty"
-            raise Exception(error)
+            raise InvalidClaimsValidatorError("Path list is empty")
         if self.validator:
             self.validator = parse_validator(self.validator)
 
@@ -160,13 +163,11 @@ def parse_validator(d: dict | list) -> Validator:
         validator = VALIDATORS.get(val_type)
         if validator:
             return validator(**d)
-        error = f"Unknown validator type {val_type}"
-        raise Exception(error)
+        raise InvalidClaimsValidatorError(f"Unknown validator type {val_type}")
     if isinstance(d, list):
         val_type = d.pop(0)
         validator = VALIDATORS.get(val_type)
         if validator:
             return validator(*d)
-        error = f"Unknown validator type {val_type}"
-        raise Exception(error)
-    raise Exception("Validator parsing failed, expected list or dict")
+        raise InvalidClaimsValidatorError(f"Unknown validator type {val_type}")
+    raise InvalidClaimsValidatorError("Validator parsing failed, expected list or dict")

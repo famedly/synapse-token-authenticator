@@ -2,6 +2,10 @@ from typing import Any
 from urllib.parse import urljoin
 
 
+class ClaimsMismatchError(Exception):
+    """Claims mismatch error."""
+
+
 class OpenIDProviderMetadata:
     """
     Wrapper around OpenID Provider Metadata values
@@ -33,8 +37,7 @@ def all_list_elems_are_equal_return_the_elem(list_):
         return None
     val = filtered_list[0]
     if not all(i == val for i in filtered_list):
-        msg = f"Elements in {filtered_list} are not equal"
-        raise Exception(msg)
+        raise ClaimsMismatchError(f"Elements in {filtered_list} are not equal")
     return val
 
 

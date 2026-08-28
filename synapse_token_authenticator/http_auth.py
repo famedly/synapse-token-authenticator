@@ -2,9 +2,17 @@ import logging
 from base64 import b64encode
 from typing import TypeAlias
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+_HTTP_AUTH_PARSE_FAILURES = (
+    ValidationError,
+    KeyError,
+    IndexError,
+    ValueError,
+)
 
 
 class NoAuth(BaseModel):
@@ -50,7 +58,7 @@ def parse_dict_auth(value: dict) -> HttpAuth:
         return BasicAuth(**value)
     if auth_type == "bearer":
         return BearerAuth(**value)
-    raise Exception(f"Unknown HttpAuth type '{auth_type}'")
+    raise ValueError(f"Unknown HttpAuth type '{auth_type}'")
 
 
 def parse_list_auth(value: list) -> HttpAuth:
@@ -62,13 +70,20 @@ def parse_list_auth(value: list) -> HttpAuth:
         return NoAuth()
     if auth_type == "basic":
         if len(value) != 2:
-            raise Exception("BasicAuth expects username and password")
+            raise ValueError("BasicAuth expects username and password")
         return BasicAuth(username=value[0], password=value[1])
     if auth_type == "bearer":
         if len(value) != 1:
-            raise Exception("BearerAuth expects a single token")
+            raise ValueError("BearerAuth expects a single token")
         return BearerAuth(token=value[0])
-    raise Exception(f"Unknown HttpAuth type '{auth_type}'")
+    raise ValueError(f"Unknown HttpAuth type '{auth_type}'")
+
+
+def _log_http_auth_parse_failure(context: str | None, error: Exception) -> None:
+    if context:
+        logger.error("%s: HttpAuth configuration error: %s", context, error)
+    else:
+        logger.error("HttpAuth configuration error: %s", error)
 
 
 def parse_auth(
@@ -81,10 +96,7 @@ def parse_auth(
             return parse_dict_auth(value)
         if isinstance(value, list):
             return parse_list_auth(value)
-        raise Exception("HttpAuth parsing failed, expected list or dict")
-    except Exception as e:
-        if context:
-            logger.error("%s: HttpAuth configuration error: %s", context, e)
-        else:
-            logger.error("HttpAuth configuration error: %s", e)
-        raise e from e
+        raise ValueError("HttpAuth parsing failed, expected list or dict")
+    except _HTTP_AUTH_PARSE_FAILURES as e:
+        _log_http_auth_parse_failure(context, e)
+        raise
