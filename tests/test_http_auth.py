@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-from pydantic import ValidationError
 
 from synapse_token_authenticator.config import TokenAuthenticatorConfig
 from synapse_token_authenticator.http_auth import (
@@ -9,16 +8,24 @@ from synapse_token_authenticator.http_auth import (
     BearerAuth,
     NoAuth,
     parse_auth,
-    parse_dict_auth,
-    parse_list_auth,
 )
 
 
 class TestHttpAuth:
     def test_parse_auth_invalid_format(self):
-        with pytest.raises(Exception) as e:
+        with pytest.raises(
+            ValueError, match="Auth parsing failed, expected list or dict"
+        ):
             parse_auth("something invalid")
-        assert e.value.args[0] == "HttpAuth parsing failed, expected list or dict"
+
+    def test_parse_auth_invalid_format_has_single_error_prefix(self):
+        with pytest.raises(ValueError) as e:
+            parse_auth("something invalid", context="NotifyOnRegistration")
+        message = str(e.value)
+        assert message.startswith(
+            "NotifyOnRegistration: Auth configuration error: Auth parsing failed"
+        )
+        assert message.count("Auth configuration error:") == 1
 
     def test_no_auth(self):
         no_auth = NoAuth()
@@ -28,27 +35,46 @@ class TestHttpAuth:
         basic_auth = BasicAuth(username="user", password="pass")
         assert basic_auth.header_map() == {b"Authorization": [b"Basic dXNlcjpwYXNz"]}
 
+    def test_basic_auth_fail_with_empty_credentials(self):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            BasicAuth(username="", password="")
+
     def test_bearer_auth(self):
         bearer_auth = BearerAuth(token="token")
         assert bearer_auth.header_map() == {b"Authorization": [b"Bearer token"]}
 
+    def test_bearer_auth_fail_with_empty_token(self):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            BearerAuth(token="")
+
+    def test_parse_dict_auth_none_type_is_no_auth(self):
+        assert parse_auth({"type": None}) == NoAuth()
+
+    def test_parse_dict_auth_fail_with_empty_string_type(self):
+        with pytest.raises(ValueError, match="Unknown Auth type ''"):
+            parse_auth({"type": ""})
+
     def test_parse_dict_auth(self):
-        assert parse_dict_auth({"type": None}) == NoAuth()
-        assert parse_dict_auth(
+        assert parse_auth(
             {"type": "basic", "username": "user", "password": "pass"}
         ) == BasicAuth(username="user", password="pass")
-        assert parse_dict_auth({"type": "bearer", "token": "token"}) == BearerAuth(
+        assert parse_auth({"type": "bearer", "token": "token"}) == BearerAuth(
             token="token"
         )
 
-    def test_parse_dict_auth_missing_type(self):
-        with pytest.raises(Exception) as e:
-            parse_dict_auth({"username": "user", "password": "pass"})
-        assert e.value.args[0] == "type"
+    def test_parse_dict_auth_allows_empty_credentials(self):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            parse_auth({"type": "basic", "username": "", "password": ""})
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            parse_auth({"type": "bearer", "token": ""})
 
-    def test_parse_dict_auth_basic_extra_fields(self):
-        with pytest.raises(ValidationError) as e:
-            parse_dict_auth(
+    def test_parse_dict_auth_missing_type(self):
+        with pytest.raises(ValueError, match="Auth configuration error: 'type'"):
+            parse_auth({"username": "user", "password": "pass"})
+
+    def test_parse_dict_auth_basic_extra_fields_are_not_allowed(self):
+        with pytest.raises(ValueError, match="Unexpected keyword argument"):
+            parse_auth(
                 {
                     "type": "basic",
                     "username": "user",
@@ -56,49 +82,88 @@ class TestHttpAuth:
                     "extra": "field",
                 }
             )
-        assert "Extra inputs are not permitted" in str(e)
 
     def test_parse_dict_auth_basic_missing_username(self):
-        with pytest.raises(ValidationError) as e:
-            parse_dict_auth({"type": "basic", "password": "pass"})
-        assert "Field required" in str(e)
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth({"type": "basic", "password": "pass"})
 
-    def test_parse_dict_auth_unknown_http_auth_type(self):
-        with pytest.raises(Exception) as e:
-            parse_dict_auth({"type": "unknown", "token": "token"})
-        assert e.value.args[0] == "Unknown HttpAuth type 'unknown'"
+    def test_parse_dict_auth_basic_missing_credentials(self):
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth({"type": "basic"})
+
+    def test_parse_dict_auth_bearer_missing_credentials(self):
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth({"type": "bearer"})
+
+    def test_parse_dict_auth_unknown_auth_type(self):
+        with pytest.raises(ValueError, match="Unknown Auth type 'unknown'"):
+            parse_auth({"type": "unknown", "token": "token"})
 
     def test_parse_list_auth_basic_empty_list(self):
-        with pytest.raises(Exception) as e:
-            parse_list_auth([])
-        assert e.value.args[0] == "pop from empty list"
+        with pytest.raises(
+            ValueError, match="Auth configuration error: pop from empty list"
+        ):
+            parse_auth([])
 
     def test_parse_auth_list(self):
-        assert parse_list_auth([None]) == NoAuth()
-        assert parse_list_auth(["basic", "user", "pass"]) == BasicAuth(
+        assert parse_auth([None]) == NoAuth()
+        assert parse_auth(["basic", "user", "pass"]) == BasicAuth(
             username="user", password="pass"
         )
-        assert parse_list_auth(["bearer", "token"]) == BearerAuth(token="token")
+        assert parse_auth(["bearer", "token"]) == BearerAuth(token="token")
+
+    def test_parse_list_auth_fail_with_empty_credentials(self):
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            parse_auth(["basic", "", ""])
+        with pytest.raises(ValueError, match="String should have at least 1 character"):
+            parse_auth(["bearer", ""])
+
+    def test_parse_list_auth_fail_with_empty_string_type(self):
+        with pytest.raises(ValueError, match="Unknown Auth type ''"):
+            parse_auth([""])
 
     def test_parse_list_auth_basic_missing_username(self):
-        with pytest.raises(Exception) as e:
-            parse_list_auth(["basic", "pass"])
-        assert e.value.args[0] == "BasicAuth expects username and password"
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth(["basic", "pass"])
 
-    def test_parse_list_auth_basic_extra_fields(self):
-        with pytest.raises(Exception) as e:
-            parse_list_auth(["basic", "user", "pass", "extra", "field"])
-        assert e.value.args[0] == "BasicAuth expects username and password"
+    def test_parse_list_auth_basic_missing_credentials(self):
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth(["basic"])
 
-    def test_parse_list_auth_bearer_extra_fields(self):
-        with pytest.raises(Exception) as e:
-            parse_list_auth(["bearer", "token", "extra", "field"])
-        assert e.value.args[0] == "BearerAuth expects a single token"
+    def test_parse_list_auth_bearer_missing_credentials(self):
+        with pytest.raises(ValueError, match="Field required"):
+            parse_auth(["bearer"])
 
-    def test_parse_list_auth_unknown_http_auth_type(self):
-        with pytest.raises(Exception) as e:
-            parse_list_auth(["unknown"])
-        assert e.value.args[0] == "Unknown HttpAuth type 'unknown'"
+    def test_parse_list_auth_basic_extra_fields_not_allowed(self):
+        with pytest.raises(ValueError, match="Unexpected positional argument"):
+            parse_auth(["basic", "user", "pass", "extra", "field"])
+
+    def test_parse_list_auth_bearer_extra_fields_not_allowed(self):
+        with pytest.raises(ValueError, match="Unexpected positional argument"):
+            parse_auth(["bearer", "token", "extra", "field"])
+
+    def test_parse_list_auth_unknown_auth_type(self):
+        with pytest.raises(ValueError, match="Unknown Auth type 'unknown'"):
+            parse_auth(["unknown"])
+
+    def test_parse_auth_logs_context_for_unknown_type(self, caplog):
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(ValueError, match="Unknown Auth type 'unknown'"),
+        ):
+            parse_auth({"type": "unknown"}, context="IntrospectionValidationConfig")
+        assert (
+            "IntrospectionValidationConfig: Auth configuration error: Unknown Auth type 'unknown'"
+            in caplog.text
+        )
+
+    def test_parse_auth_logs_context_for_missing_credentials(self, caplog):
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(ValueError, match="Field required"),
+        ):
+            parse_auth({"type": "basic"}, context="NotifyOnRegistration")
+        assert "NotifyOnRegistration: Auth configuration error:" in caplog.text
 
 
 class TestHttpAuthConfigCoercion:
@@ -180,7 +245,7 @@ class TestHttpAuthConfigCoercion:
     def test_introspection_auth_error_logs_config_class(self, caplog):
         with (
             caplog.at_level(logging.ERROR),
-            pytest.raises(ValueError),
+            pytest.raises(ValueError, match="Unknown Auth type 'unknown'"),
         ):
             TokenAuthenticatorConfig(
                 {
@@ -193,14 +258,14 @@ class TestHttpAuthConfigCoercion:
                 }
             )
         assert (
-            "IntrospectionValidationConfig: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            "IntrospectionValidationConfig: Auth configuration error: Unknown Auth type 'unknown'"
             in caplog.text
         )
 
     def test_notify_on_registration_auth_error_logs_config_class(self, caplog):
         with (
             caplog.at_level(logging.ERROR),
-            pytest.raises(ValueError),
+            pytest.raises(ValueError, match="Unknown Auth type 'unknown'"),
         ):
             TokenAuthenticatorConfig(
                 {
@@ -216,6 +281,23 @@ class TestHttpAuthConfigCoercion:
                 }
             )
         assert (
-            "NotifyOnRegistration: HttpAuth configuration error: Unknown HttpAuth type 'unknown'"
+            "NotifyOnRegistration: Auth configuration error: Unknown Auth type 'unknown'"
             in caplog.text
         )
+
+    def test_introspection_missing_credentials_logs_config_class(self, caplog):
+        with (
+            caplog.at_level(logging.ERROR),
+            pytest.raises(ValueError, match="Field required"),
+        ):
+            TokenAuthenticatorConfig(
+                {
+                    "oauth": {
+                        "introspection_validation": {
+                            "endpoint": "http://idp.test/introspect",
+                            "auth": {"type": "basic"},
+                        },
+                    }
+                }
+            )
+        assert "IntrospectionValidationConfig: Auth configuration error:" in caplog.text
