@@ -21,7 +21,7 @@ from typing import Any
 
 from jwcrypto import jwk, jwt
 from jwcrypto.common import JWException, json_decode
-from jwcrypto.jwk import JWKSet
+from jwcrypto.jwk import JWK, JWKSet
 from synapse.api.errors import HttpResponseException, SynapseError
 from synapse.module_api import JsonDict, LoginResponse, ModuleApi
 from synapse.types import UserID
@@ -35,9 +35,10 @@ from synapse_token_authenticator.resources.public_key import PublicKeysResource
 from synapse_token_authenticator.utils import (
     ClaimsMismatchError,
     all_list_elems_are_equal_return_the_elem,
+    get_claim_from_validation,
     get_oidp_metadata,
-    get_path_in_dict,
-    if_not_none,
+    get_reconcile_claim_paths,
+    get_reconciled_claim,
     validate_scopes,
 )
 
@@ -108,28 +109,33 @@ class TokenAuthenticator:
 
         self.api.register_password_auth_provider_callbacks(auth_checkers=auth_checkers)
 
-    async def check_jwt_auth(
-        self, username: str, login_type: str, login_dict: JsonDict
-    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
+    def _acquire_token_data(
+        self, login_type: str, expected: str, login_dict: JsonDict
+    ) -> str | None:
         logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token":
+        if login_type != expected:
             logger.info("Wrong login type")
             return None
         if "token" not in login_dict:
             logger.info("Missing token")
             return None
-        token = login_dict["token"]
+        return login_dict["token"]
 
-        check_claims: dict = {}
-        if self.config.jwt.require_expiry:
-            check_claims["exp"] = None
+    def _verify_jwt(
+        self,
+        token: str,
+        key: JWKSet | JWK,
+        check_claims: dict | None = None,
+        algs: list[str] | None = None,
+        expected_type: str | None = None,
+    ) -> jwt.JWT | None:
         try:
-            # OK, let's verify the token
-            token = jwt.JWT(
+            return jwt.JWT(
                 jwt=token,
-                key=self.key,
+                key=key,
                 check_claims=check_claims,
-                algs=[self.config.jwt.algorithm],
+                algs=algs,
+                expected_type=expected_type,
             )
         except ValueError as e:
             logger.info("Unrecognized token %s", e)
@@ -137,6 +143,56 @@ class TokenAuthenticator:
         except JWException as e:
             logger.info("Invalid token %s", e)
             return None
+        except TypeError as e:
+            logger.info("Invalid token type %s", e)
+            return None
+
+    def _localpart_from_username(
+        self, username: str, username_type: str | None
+    ) -> str | None:
+        if username_type == "localpart":
+            return username
+        if username_type == "fq_uid":
+            return UserID.from_string(username).localpart
+        if username_type == "user_id":
+            return UserID.from_string(
+                self.api.get_qualified_user_id(username)
+            ).localpart
+        return None
+
+    def _fq_uid_from_username(
+        self, username: str, username_type: str | None
+    ) -> str | None:
+        if username_type == "fq_uid":
+            return username
+        if username_type == "user_id":
+            return self.api.get_qualified_user_id(username)
+        if username_type == "localpart":
+            return self.api.get_qualified_user_id(username)
+        return None
+
+    async def check_jwt_auth(
+        self, username: str, login_type: str, login_dict: JsonDict
+    ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token", login_dict
+        )
+        if token_data is None:
+            return None
+
+        check_claims: dict = {}
+        if self.config.jwt.require_expiry:
+            check_claims["exp"] = None
+
+        token = self._verify_jwt(
+            token=token_data,
+            key=self.key,
+            check_claims=check_claims,
+            algs=[self.config.jwt.algorithm],
+        )
+        if token is None:
+            return None
+
         payload = json_decode(token.claims)
         if "sub" not in payload:
             logger.info("Missing user_id field")
@@ -196,21 +252,22 @@ class TokenAuthenticator:
     async def check_oidc_auth(
         self, username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.oidc":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.oidc", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         client = self.api._hs.get_proxied_http_client()
         oidc = self.config.oidc
         oidc_metadata = await get_oidp_metadata(oidc.issuer, client)
 
         # Further validation using token introspection
-        data = {"token": token, "token_type_hint": "access_token", "scope": "openid"}
+        data = {
+            "token": token_data,
+            "token_type_hint": "access_token",
+            "scope": "openid",
+        }
 
         try:
             introspection_resp = await client.post_urlencoded_get_json(
@@ -272,8 +329,6 @@ class TokenAuthenticator:
             logger.info("User doesn't exist, registering it...")
             await self.api.register_user(user_id.localpart)
 
-        user_id_str = self.api.get_qualified_user_id(username)
-
         logger.info("All done and valid, logging in!")
         return (user_id_str, None)
 
@@ -281,14 +336,11 @@ class TokenAuthenticator:
         self, username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.oauth
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.oauth":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.oauth", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         client = self.api._hs.get_proxied_http_client()
 
@@ -303,17 +355,14 @@ class TokenAuthenticator:
                     config.jwt_validation.jwks_endpoint,
                 )
                 config.jwt_validation.jwk_set = JWKSet.from_json(jwks_json)
-            try:
-                token = jwt.JWT(
-                    jwt=token,
-                    key=config.jwt_validation.jwk_set,
-                    check_claims=check_claims,
-                )
-            except ValueError as e:
-                logger.info("Unrecognized token %s", e)
-                return None
-            except JWException as e:
-                logger.info("Invalid token %s", e)
+
+            assert config.jwt_validation.jwk_set is not None
+            token = self._verify_jwt(
+                token=token_data,
+                key=config.jwt_validation.jwk_set,
+                check_claims=check_claims,
+            )
+            if token is None:
                 return None
 
             jwt_claims = json_decode(token.claims)
@@ -340,7 +389,7 @@ class TokenAuthenticator:
             try:
                 introspection_claims = await client.post_urlencoded_get_json(
                     config.introspection_validation.endpoint,
-                    {"token": token},
+                    {"token": token_data},
                     headers=config.introspection_validation.auth.header_map(),
                 )
             except HttpResponseException as e:
@@ -368,56 +417,41 @@ class TokenAuthenticator:
                 return None
 
         # getting localpart and fully qualified user_id, validate all sources for equality
-
-        def get_from_set(set_):
-            return if_not_none(lambda path: get_path_in_dict(path, set_))
-
         username_type = config.username_type
 
         try:
-            get_localpart_mb = if_not_none(lambda x: x.localpart_path)
-
+            # get localpart from each source
+            jwt_localpart = get_claim_from_validation(
+                jwt_claims, config.jwt_validation, "localpart_path"
+            )
+            introspection_localpart = get_claim_from_validation(
+                introspection_claims, config.introspection_validation, "localpart_path"
+            )
+            username_localpart = self._localpart_from_username(
+                username, config.username_type
+            )
+            # reconcile localpart from different sources
             localpart = all_list_elems_are_equal_return_the_elem(
                 [
-                    get_from_set(jwt_claims)(get_localpart_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_localpart_mb(config.introspection_validation)
-                    ),
-                    username if username_type == "localpart" else None,
-                    (
-                        UserID.from_string(username).localpart
-                        if username_type == "fq_uid"
-                        else None
-                    ),
-                    (
-                        UserID.from_string(
-                            self.api.get_qualified_user_id(username)
-                        ).localpart
-                        if username_type == "user_id"
-                        else None
-                    ),
+                    jwt_localpart,
+                    introspection_localpart,
+                    username_localpart,
                 ]
             )
-
-            get_fq_uid_mb = if_not_none(lambda x: x.fq_uid_path)
-
+            # get fq_uid from each source
+            jwt_fq_uid = get_claim_from_validation(
+                jwt_claims, config.jwt_validation, "fq_uid_path"
+            )
+            introspection_fq_uid = get_claim_from_validation(
+                introspection_claims, config.introspection_validation, "fq_uid_path"
+            )
+            username_fq_uid = self._fq_uid_from_username(username, username_type)
+            # reconcile fq_uid from different sources
             fully_qualified_uid = all_list_elems_are_equal_return_the_elem(
                 [
-                    get_from_set(jwt_claims)(get_fq_uid_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_fq_uid_mb(config.introspection_validation)
-                    ),
-                    username if username_type == "fq_uid" else None,
-                    (
-                        self.api.get_qualified_user_id(username)
-                        if username_type == "user_id"
-                        else None
-                    ),
-                    (
-                        self.api.get_qualified_user_id(username)
-                        if username_type == "localpart"
-                        else None
-                    ),
+                    jwt_fq_uid,
+                    introspection_fq_uid,
+                    username_fq_uid,
                 ]
             )
         except (ClaimsMismatchError, SynapseError) as e:
@@ -435,53 +469,34 @@ class TokenAuthenticator:
             fully_qualified_uid = self.api.get_qualified_user_id(localpart)
 
         try:
-            get_displayname_mb = if_not_none(lambda x: x.displayname_path)
-            displayname = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_displayname_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_displayname_mb(config.introspection_validation)
-                    ),
-                ]
+            displayname = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "displayname_path",
+            )
+            admin = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "admin_path",
+            )
+            email = get_reconciled_claim(
+                jwt_claims,
+                introspection_claims,
+                config.jwt_validation,
+                config.introspection_validation,
+                "email_path",
             )
         except ClaimsMismatchError as e:
             logger.info("%s", e)
             return None
 
         try:
-            get_admin_mb = if_not_none(lambda x: x.admin_path)
-            admin = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_admin_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_admin_mb(config.introspection_validation)
-                    ),
-                ]
-            )
-        except ClaimsMismatchError as e:
-            logger.info("%s", e)
-            return None
-
-        try:
-            get_email_mb = if_not_none(lambda x: x.email_path)
-            email = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_from_set(jwt_claims)(get_email_mb(config.jwt_validation)),
-                    get_from_set(introspection_claims)(
-                        get_email_mb(config.introspection_validation)
-                    ),
-                ]
-            )
-        except ClaimsMismatchError as e:
-            logger.info("%s", e)
-            return None
-
-        try:
-            external_id = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_path_in_dict("sub", jwt_claims),
-                    get_path_in_dict("sub", introspection_claims),
-                ]
+            external_id = get_reconcile_claim_paths(
+                jwt_claims, introspection_claims, "sub"
             )
         except ClaimsMismatchError as e:
             logger.info(e)
@@ -491,11 +506,8 @@ class TokenAuthenticator:
             return None
 
         try:
-            auth_provider = all_list_elems_are_equal_return_the_elem(
-                [
-                    get_path_in_dict("iss", jwt_claims),
-                    get_path_in_dict("iss", introspection_claims),
-                ]
+            auth_provider = get_reconcile_claim_paths(
+                jwt_claims, introspection_claims, "iss"
             )
         except ClaimsMismatchError as e:
             logger.info(e)
@@ -577,14 +589,11 @@ class TokenAuthenticator:
         self, _username: str, login_type: str, login_dict: JsonDict
     ) -> tuple[str, Callable[[LoginResponse], Awaitable[None]] | None] | None:
         config = self.config.epa
-        logger.info("Receiving auth request")
-        if login_type != "com.famedly.login.token.epa":
-            logger.info("Wrong login type")
+        token_data = self._acquire_token_data(
+            login_type, "com.famedly.login.token.epa", login_dict
+        )
+        if token_data is None:
             return None
-        if "token" not in login_dict:
-            logger.info("Missing token")
-            return None
-        token = login_dict["token"]
 
         if config.jwks_endpoint:
             client = self.api._hs.get_proxied_http_client()
@@ -597,21 +606,19 @@ class TokenAuthenticator:
             "iss": config.iss,
             "exp": None,
         }
-        try:
-            enc_token = jwt.JWT(key=config.enc_jwk, jwt=token, expected_type="JWE")
-            token = jwt.JWT(
-                jwt=enc_token.claims,
-                key=config.jwk_set,
-                check_claims=check_claims,
-            )
-        except ValueError as e:
-            logger.info("Unrecognized token %s", e)
+
+        assert config.enc_jwk is not None
+        enc_token = self._verify_jwt(
+            token=token_data, key=config.enc_jwk, expected_type="JWE"
+        )
+        if enc_token is None:
             return None
-        except JWException as e:
-            logger.info("Invalid token %s", e)
-            return None
-        except TypeError as e:
-            logger.info("Invalid token type %s", e)
+
+        assert config.jwk_set is not None
+        token = self._verify_jwt(
+            token=enc_token.claims, key=config.jwk_set, check_claims=check_claims
+        )
+        if token is None:
             return None
 
         jwt_header = json_decode(token.header)
@@ -641,16 +648,8 @@ class TokenAuthenticator:
             )
             return None
 
-        localpart = (
-            get_path_in_dict(config.localpart_path, jwt_claims)
-            if config.localpart_path
-            else None
-        )
-        displayname = (
-            get_path_in_dict(config.displayname_path, jwt_claims)
-            if config.displayname_path
-            else None
-        )
+        localpart = get_claim_from_validation(jwt_claims, config, "localpart_path")
+        displayname = get_claim_from_validation(jwt_claims, config, "displayname_path")
 
         if not localpart:
             logger.info("Missing localpart")
