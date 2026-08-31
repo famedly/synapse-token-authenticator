@@ -121,7 +121,7 @@ class TokenAuthenticator:
             return None
         return login_dict["token"]
 
-    def _veryfiy_jwt(
+    def _verify_jwt(
         self,
         token: str,
         key: JWKSet | JWK,
@@ -184,7 +184,7 @@ class TokenAuthenticator:
         if self.config.jwt.require_expiry:
             check_claims["exp"] = None
 
-        token = self._veryfiy_jwt(
+        token = self._verify_jwt(
             token=token_data,
             key=self.key,
             check_claims=check_claims,
@@ -357,7 +357,7 @@ class TokenAuthenticator:
                 config.jwt_validation.jwk_set = JWKSet.from_json(jwks_json)
 
             assert config.jwt_validation.jwk_set is not None
-            token = self._veryfiy_jwt(
+            token = self._verify_jwt(
                 token=token_data,
                 key=config.jwt_validation.jwk_set,
                 check_claims=check_claims,
@@ -608,14 +608,14 @@ class TokenAuthenticator:
         }
 
         assert config.enc_jwk is not None
-        enc_token = self._veryfiy_jwt(
+        enc_token = self._verify_jwt(
             token=token_data, key=config.enc_jwk, expected_type="JWE"
         )
         if enc_token is None:
             return None
 
         assert config.jwk_set is not None
-        token = self._veryfiy_jwt(
+        token = self._verify_jwt(
             token=enc_token.claims, key=config.jwk_set, check_claims=check_claims
         )
         if token is None:
