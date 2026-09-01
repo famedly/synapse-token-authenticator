@@ -126,7 +126,7 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `jwk_file`         | String (optional)                                         |
 | `jwks_endpoint`    | String (optional)                                         |
 
-Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified.
+Exactly one of `jwk_set`, `jwk_file`, or `jwks_endpoint` must be specified. They are mutually exclusive and configuring more than one will result in a configuration error.
 
 ### IntrospectionValidationConfig
 [RFC 7662 - OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
@@ -378,7 +378,9 @@ or
 | `localpart_path`           | [`Path`](#path) (optional)                                                |
 | `lowercase_localpart`      | Bool (defaults to `false`)                                                |
 
-Either `jwk_set` or `jwk_file` or `jwks_endpoint` must be specified and either `enc_jwk` or `enc_jwk_file` must be specified.
+Exactly one of `jwk_set`, `jwk_file`, or `jwks_endpoint` must be specified. They are mutually exclusive and configuring more than one will result in a configuration error.
+
+Exactly one of `enc_jwk` or `enc_jwk_file` must be specified. They are mutually exclusive and configuring more than one will result in a configuration error.
 
 `resource_id` is an id for the synapse token authenticator. The same id must be present on the claim `aud` of the received token.
 

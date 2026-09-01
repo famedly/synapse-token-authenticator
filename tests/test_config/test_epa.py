@@ -58,6 +58,23 @@ class TestEPaConfig:
         assert isinstance(config.enc_jwk, JWK)
         assert config.enc_jwk_file == str(enc_jwk_path)
 
+    def test_epa_config_more_than_one_enc_jwk_source_should_raise_error(self, tmp_path):
+        jwk_set = get_jwk_set()
+        enc_jwk_path = tmp_path / "enc_jwk.pem"
+        enc_jwk_path.write_bytes(
+            JWK.generate(kty="RSA", size=2048).export_to_pem(
+                private_key=True, password=None
+            )
+        )
+        with pytest.raises(ValidationError):
+            EPaConfig(
+                iss="https://example.com",
+                resource_id="https://example.com",
+                enc_jwk=get_enc_jwk(),
+                enc_jwk_file=str(enc_jwk_path),
+                jwk_set=jwk_set,
+            )
+
     def test_epa_config_without_jwk_set(self):
         enc_jwk = get_enc_jwk()
         with pytest.raises(ValidationError):
@@ -65,6 +82,39 @@ class TestEPaConfig:
                 iss="https://example.com",
                 resource_id="https://example.com",
                 enc_jwk=enc_jwk,
+            )
+
+    def test_epa_config_with_more_than_one_jwk_source_should_raise_error(
+        self, tmp_path
+    ):
+        enc_jwk = get_enc_jwk()
+        jwk_set = get_jwk_set()
+        enc_jwk_path = tmp_path / "enc_jwk.pem"
+        with pytest.raises(ValidationError):
+            EPaConfig(
+                iss="https://example.com",
+                resource_id="https://example.com",
+                enc_jwk=enc_jwk,
+                jwk_set=jwk_set,
+                jwk_file=str(enc_jwk_path),
+            )
+
+        with pytest.raises(ValidationError):
+            EPaConfig(
+                iss="https://example.com",
+                resource_id="https://example.com",
+                enc_jwk=enc_jwk,
+                jwk_set=jwk_set,
+                jwks_endpoint="https://example.com/.well-known/jwks.json",
+            )
+
+        with pytest.raises(ValidationError):
+            EPaConfig(
+                iss="https://example.com",
+                resource_id="https://example.com",
+                enc_jwk=enc_jwk,
+                jwk_file=str(enc_jwk_path),
+                jwks_endpoint="https://example.com/.well-known/jwks.json",
             )
 
     def test_epa_config_without_iss(self):

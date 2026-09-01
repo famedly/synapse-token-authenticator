@@ -60,6 +60,25 @@ class TestJwtValidationConfig:
         assert config.required_scopes == ["foo", "bar"]
         assert isinstance(config.jwk_set, JWK)
 
+    def test_jwt_validation_config_more_than_one_jwk_source_should_raise_error(
+        self, tmp_path
+    ):
+        jwk_path = tmp_path / "jwk.pem"
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_set=get_jwk(), jwk_file=str(jwk_path))
+
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(
+                jwk_set=get_jwk(),
+                jwks_endpoint="https://example.com/.well-known/jwks.json",
+            )
+
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(
+                jwk_file=str(jwk_path),
+                jwks_endpoint="https://example.com/.well-known/jwks.json",
+            )
+
     def test_jwt_validation_config_required_scopes_accepts_str(self):
         config = JwtValidationConfig(jwk_set=get_jwk(), required_scopes="foo bar")
         assert config.required_scopes == "foo bar"
