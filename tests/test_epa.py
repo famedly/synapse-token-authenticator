@@ -20,7 +20,14 @@ from jwcrypto import jwk
 from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
-from tests import ModuleApiTestCase, get_enc_jwk, get_jwe_token, get_jwk, get_jwt_token
+from tests import (
+    ModuleApiTestCase,
+    get_enc_jwk,
+    get_jwe_token,
+    get_jwk,
+    get_jwk_set,
+    get_jwt_token,
+)
 
 
 def get_default_claims() -> dict:
@@ -241,3 +248,25 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.epa", {"token": token}
         )
         assert result[0] == "@AlIcE:example.test"
+
+
+class CustomFlowTestsWithJwkSet(CustomFlowTests):
+    """Same default-config EPA tests, but jwk_set is a JWKS dict (→ JWKSet).
+
+    Synapse JSON-serializes HS config, so pass export(..., as_dict=True), not a
+    live JWKSet. Tests that use @override_config stay only on CustomFlowTests.
+    """
+
+    def default_config(self) -> dict:
+        conf = super().default_config()
+        conf["modules"][0]["config"]["epa"]["jwk_set"] = get_jwk_set().export(
+            private_keys=True, as_dict=True
+        )
+        return conf
+
+    # Avoid re-running @override_config cases (they embed their own jwk_set).
+    test_token_wrong_iss = None  # type: ignore
+    test_token_wrong_aud = None  # type: ignore
+    test_fetch_jwks = None  # type: ignore
+    test_valid_login_registration_disabled = None  # type: ignore
+    test_localpart_lowercase = None  # type: ignore

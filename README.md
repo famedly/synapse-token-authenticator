@@ -83,7 +83,7 @@ It is recommended to have `require_expiry` set to `true` (default). As for `allo
 | `introspection_validation` | [`IntrospectionValidationConfig`](#introspectionvalidationconfig) (optional) |
 | `username_type`            | One of `'fq_uid'`, `'localpart'`, `'user_id'` (optional)                     |
 | `notify_on_registration`   | [`NotifyOnRegistration`](#notifyonregistration) (optional)                   |
-| `expose_metadata_resource` | Any (optional)                                                               |
+| `expose_metadata_resource` | Object with required `name` (String) (optional)                              |
 | `registration_enabled`     | Bool (defaults to `false`)                                                   |
 
 At least one of `jwt_validation` or `introspection_validation` must be defined.
@@ -366,7 +366,7 @@ or
 | `iss`                      | String                                                                    |
 | `resource_id`              | String                                                                    |
 | `registration_enabled`     | Bool (defaults to `false`)                                                |
-| `expose_metadata_resource` | Any (optional)                                                            |
+| `expose_metadata_resource` | Object with required `name` (String) (optional)                           |
 | `validator`                | [`Validator`](#validator) (defaults to [`Exist`](#exist))                 |
 | `jwk_set`                  | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
 | `jwk_file`                 | String (optional)                                                         |

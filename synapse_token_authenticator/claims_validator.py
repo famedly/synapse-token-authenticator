@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from synapse_token_authenticator.utils import get_path_in_dict
 
@@ -29,6 +29,7 @@ class InvalidClaimsValidatorError(ValueError):
     """Invalid claims validator definition."""
 
 
+@runtime_checkable
 class Validator(Protocol):
     def validate(self, x: Any) -> bool: ...
 

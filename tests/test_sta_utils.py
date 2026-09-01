@@ -177,7 +177,7 @@ def test_get_reconciled_claim_returns_none_when_both_absent():
 
 def test_get_reconciled_claim_uses_single_source():
     jwt_claims = {"preferred_username": "user"}
-    introspection_claims: dict = {}
+    introspection_claims = {}
     jwt_config = SimpleValidationConfig(localpart_path="preferred_username")
     assert (
         get_reconciled_claim(

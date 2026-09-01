@@ -36,6 +36,7 @@ ENC_JWK = jwk.JWK.generate(kty="RSA", size=2048)
 # secrets for token generation need to be 64 chars long, as it needs to have 512 bits
 # since HS512 is used by default. The word 'jwcrypto' is 8 letters long. Perfect.
 _DEFAULT_TOKEN_SECRET = "jwcrypto" * 8
+_ANOTHER_TOKEN_SECRET = "anothers" * 8
 
 
 class ModuleApiTestCase(synapsetest.HomeserverTestCase):
@@ -157,6 +158,13 @@ def get_jwk(secret=_DEFAULT_TOKEN_SECRET, id_="123456") -> jwk.JWK:
     )
 
 
+def get_jwk_set() -> jwk.JWKSet:
+    jwk_set = jwk.JWKSet()
+    jwk_set.add(get_jwk())
+    jwk_set.add(get_jwk(_ANOTHER_TOKEN_SECRET, "another-key-id"))
+    return jwk_set
+
+
 def get_enc_jwk() -> jwk.JWK:
     return ENC_JWK
 
@@ -267,6 +275,7 @@ def mock_idp_post(uri, data_raw, **kwargs):
             payload={
                 "active": True,
                 "iss": hostname,
+                "client_id": "1111@project",
                 "localpart": "alice",
                 "urn:zitadel:iam:org:project:231872387283:roles": {
                     "OrgAdmin": {"2283783782778": "meow"}
