@@ -441,9 +441,7 @@ class TokenAuthenticator:
                 oauth_config.introspection_validation,
                 "localpart_path",
             )
-            username_localpart = self._localpart_from_username(
-                username, oauth_config.username_type
-            )
+            username_localpart = self._localpart_from_username(username, username_type)
             # reconcile localpart from different sources
             localpart = all_list_elems_are_equal_return_the_elem(
                 [

@@ -29,6 +29,8 @@ PathList: TypeAlias = Path | list[list[str]]
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True, extra="ignore"))
 class JwtValidationConfig:
     validator: Validator = Field(default_factory=Exist)
+    # We recommend using the default value of True for require_expiry like in JWT
+    # Config, but we keep it to False for backwards compatibility with existing config.
     require_expiry: bool = False
     localpart_path: Path | None = None
     user_id_path: Path | None = None
