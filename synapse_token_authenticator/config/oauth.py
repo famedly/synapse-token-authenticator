@@ -65,15 +65,24 @@ class JwtValidationConfig:
 
     @model_validator(mode="after")
     def decide_jwk_set(self) -> Self:
+        sources = [
+            self.jwk_set is not None,
+            self.jwk_file is not None,
+            self.jwks_endpoint is not None,
+        ]
+        if sum(sources) != 1:
+            raise ValueError(
+                "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
+            )
         if self.jwk_set:
             return self
         elif self.jwk_file:
             with open(self.jwk_file, "rb") as f:
                 self.jwk_set = JWK.from_pem(f.read())
                 return self
-        elif not self.jwks_endpoint:
-            raise ValueError("No JWK set")
-        return self
+        elif self.jwks_endpoint:
+            return self
+        raise ValueError("No JWK set")
 
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True, extra="ignore"))
