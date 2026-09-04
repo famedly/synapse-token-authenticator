@@ -116,3 +116,115 @@ class OIDCTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
         assert result[0] == "@alice:example.test"
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@project",
+                            "client_secret": "2222@project",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allowed_client_ids": ["1111@project", "other@project"],
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    async def test_allowed_client_ids_list_allows(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
+            "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
+        )
+        assert result[0] == "@alice:example.test"
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@project",
+                            "client_secret": "2222@project",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allowed_client_ids": ["other@project"],
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    async def test_allowed_client_ids_list_rejects(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
+            "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
+        )
+        assert result is None
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@project",
+                            "client_secret": "2222@project",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allowed_client_ids": "1111@project other@project",
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    async def test_allowed_client_ids_space_separated_allows(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
+            "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
+        )
+        assert result[0] == "@alice:example.test"
+
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_idp_req
+    )
+    @synapsetest.override_config(
+        {
+            "modules": [
+                {
+                    "module": "synapse_token_authenticator.TokenAuthenticator",
+                    "config": {
+                        "oidc": {
+                            "issuer": "https://idp.example.test",
+                            "client_id": "1111@project",
+                            "client_secret": "2222@project",
+                            "project_id": "231872387283",
+                            "organization_id": "2283783782778",
+                            "allowed_client_ids": "other@project another@project",
+                        }
+                    },
+                }
+            ]
+        }
+    )
+    async def test_allowed_client_ids_space_separated_rejects(self, *args):
+        result = await self.hs.mockmod.check_oidc_auth(
+            "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
+        )
+        assert result is None
