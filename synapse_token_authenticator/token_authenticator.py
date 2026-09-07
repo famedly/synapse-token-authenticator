@@ -101,8 +101,8 @@ class TokenAuthenticator:
 
             # Registers the encryption public keys
             keys = JWKSet()
-            assert self.config.epa.enc_jwk is not None
-            keys.add(self.config.epa.enc_jwk)
+            if self.config.epa.enc_jwk:
+                keys.add(self.config.epa.enc_jwk)
             self.api.register_web_resource(
                 self.config.epa.enc_jwks_endpoint, PublicKeysResource(keys)
             )

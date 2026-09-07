@@ -13,9 +13,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import json
 from unittest import mock
 
 import tests.unittest as synapsetest
+from synapse_token_authenticator.resources.login_metadata import LoginMetadataResource
 from tests import ModuleApiTestCase, get_oidc_login, mock_idp_req
 
 
@@ -228,3 +230,21 @@ class OIDCTests(ModuleApiTestCase):
             "alice", "com.famedly.login.token.oidc", get_oidc_login("alice")
         )
         assert result is None
+
+    def test_oidc_login_metadata_resource_is_registered(self):
+        path = "/_famedly/login/com.famedly.login.token.oidc"
+        resource = self.hs._module_web_resources.get(path)
+        assert isinstance(resource, LoginMetadataResource)
+
+        request = mock.Mock()
+        body = resource.render_GET(request)
+        assert json.loads(body) == {
+            "issuer": "https://idp.example.test",
+            "issuer-metadata": (
+                "https://idp.example.test/.well-known/openid-configuration"
+            ),
+            "organization-id": "2283783782778",
+            "project-id": "231872387283",
+        }
+        request.setHeader.assert_any_call(b"content-type", b"application/json")
+        request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")

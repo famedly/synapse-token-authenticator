@@ -56,11 +56,15 @@ class JwtValidationConfig:
         if isinstance(value, (JWKSet, JWK)):
             return value
         if isinstance(value, str):
-            return JWKSet.from_json(value)
-        if isinstance(value, dict) and "keys" in value:
-            return JWKSet.from_json(json.dumps(value))
+            if json.loads(value).get("keys"):
+                return JWKSet.from_json(value)
+            else:
+                return JWK.from_json(value)
         if isinstance(value, dict):
-            return JWK(**value)
+            if "keys" in value:
+                return JWKSet.from_json(json.dumps(value))
+            else:
+                return JWK(**value)
         return None
 
     @model_validator(mode="after")
@@ -70,19 +74,21 @@ class JwtValidationConfig:
             self.jwk_file is not None,
             self.jwks_endpoint is not None,
         ]
-        if sum(sources) != 1:
-            raise ValueError(
-                "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
-            )
-        if self.jwk_set:
-            return self
-        elif self.jwk_file:
-            with open(self.jwk_file, "rb") as f:
-                self.jwk_set = JWK.from_pem(f.read())
+        if sum(sources) == 1:
+            if self.jwk_set:
                 return self
-        elif self.jwks_endpoint:
-            return self
-        raise ValueError("No JWK set")
+            elif self.jwk_file:
+                try:
+                    with open(self.jwk_file, "rb") as f:
+                        self.jwk_set = JWK.from_pem(f.read())
+                        return self
+                except FileNotFoundError:
+                    raise ValueError(f"jwk_file '{self.jwk_file}' not found")
+            elif self.jwks_endpoint:
+                return self
+        raise ValueError(
+            "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
+        )
 
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True, extra="ignore"))

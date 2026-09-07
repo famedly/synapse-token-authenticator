@@ -178,10 +178,12 @@ def get_jwt_token(
     claims=None,
     id_="123456",
     extra_headers=None,
+    key=None,
 ) -> str:
     if extra_headers is None:
         extra_headers = {}
-    key = get_jwk(secret, id_)
+    if key is None:
+        key = get_jwk(secret, id_)
     if claims is None:
         claims = {}
     claims["sub"] = username

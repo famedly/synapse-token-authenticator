@@ -163,12 +163,18 @@ def parse_validator(d: dict | list) -> Validator:
         val_type = d.pop("type")
         validator = VALIDATORS.get(val_type)
         if validator:
-            return validator(**d)
+            try:
+                return validator(**d)
+            except TypeError as e:
+                raise InvalidClaimsValidatorError(f"Invalid validator arguments: {e}")
         raise InvalidClaimsValidatorError(f"Unknown validator type {val_type}")
     if isinstance(d, list):
         val_type = d.pop(0)
         validator = VALIDATORS.get(val_type)
         if validator:
-            return validator(*d)
+            try:
+                return validator(*d)
+            except TypeError as e:
+                raise InvalidClaimsValidatorError(f"Invalid validator arguments: {e}")
         raise InvalidClaimsValidatorError(f"Unknown validator type {val_type}")
     raise InvalidClaimsValidatorError("Validator parsing failed, expected list or dict")

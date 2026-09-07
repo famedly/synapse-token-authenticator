@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import json
 from copy import deepcopy
 from unittest import mock
 
@@ -20,6 +21,8 @@ from jwcrypto import jwk
 from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
+from synapse_token_authenticator.resources.metadata import MetadataResource
+from synapse_token_authenticator.resources.public_key import PublicKeysResource
 from tests import (
     ModuleApiTestCase,
     get_enc_jwk,
@@ -249,6 +252,45 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         assert result[0] == "@AlIcE:example.test"
 
+    config_for_epa_metadata = deepcopy(config_for_epa)
+    config_for_epa_metadata["modules"][0]["config"]["epa"][
+        "expose_metadata_resource"
+    ] = {
+        "name": "com.famedly.login.token.epa",
+        "something": "else",
+    }
+
+    @synapsetest.override_config(config_for_epa_metadata)
+    def test_epa_metadata_resource_is_registered(self):
+        path = "/_famedly/login/com.famedly.login.token.epa"
+        resource = self.hs._module_web_resources.get(path)
+        assert isinstance(resource, MetadataResource)
+
+        request = mock.Mock()
+        body = resource.render_GET(request)
+        assert json.loads(body) == {
+            "name": "com.famedly.login.token.epa",
+            "something": "else",
+        }
+        request.setHeader.assert_any_call(b"content-type", b"application/json")
+        request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")
+
+    def test_epa_public_keys_resource_is_registered(self):
+        path = self.hs.mockmod.config.epa.enc_jwks_endpoint
+        resource = self.hs._module_web_resources.get(path)
+        assert path == "/.well-known/jwks.json"
+        assert isinstance(resource, PublicKeysResource)
+
+        request = mock.Mock()
+        body = resource.render_GET(request)
+        published = json.loads(body)
+        expected = jwk.JWKSet()
+        expected.add(get_enc_jwk())
+        assert published == json.loads(expected.export(private_keys=False))
+        assert "d" not in published["keys"][0]
+        request.setHeader.assert_any_call(b"content-type", b"application/json")
+        request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")
+
 
 class CustomFlowTestsWithJwkSet(CustomFlowTests):
     """Same default-config EPA tests, but jwk_set is a JWKS dict (→ JWKSet).
@@ -270,3 +312,4 @@ class CustomFlowTestsWithJwkSet(CustomFlowTests):
     test_fetch_jwks = None  # type: ignore
     test_valid_login_registration_disabled = None  # type: ignore
     test_localpart_lowercase = None  # type: ignore
+    test_epa_metadata_resource_is_registered = None  # type: ignore
