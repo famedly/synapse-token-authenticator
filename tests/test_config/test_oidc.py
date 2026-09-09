@@ -50,6 +50,28 @@ class TestOIDCConfig:
         )
         assert config.allowed_client_ids == ["client-a", "client-b"]
 
+    def test_oidc_config_allowed_client_ids_accepts_none(self):
+        config = OIDCConfig(
+            issuer="https://example.com",
+            client_id="client_id",
+            client_secret="client_secret",
+            project_id="project_id",
+            organization_id="organization_id",
+            allowed_client_ids=None,
+        )
+        assert config.allowed_client_ids == None
+
+    def test_oidc_config_project_id_and_organization_id_accept_int(self):
+        config = OIDCConfig(
+            issuer="https://example.com",
+            client_id="client_id",
+            client_secret="client_secret",
+            project_id=1234,
+            organization_id=5678,
+        )
+        assert config.project_id == "1234"
+        assert config.organization_id == "5678"
+
     def test_oidc_config_is_not_missing_required_fields(self):
         with pytest.raises(ValidationError) as e:
             OIDCConfig(

@@ -101,6 +101,10 @@ class TokenAuthenticator:
 
             # Registers the encryption public keys
             keys = JWKSet()
+
+            # enc_jwk and enc_jwk_file are both optional fields but either one must set.
+            # If enc_jwk is empty, the model resolves it from enc_jwk_file. So enc_jwk
+            # cannot be empty. This assert is to resolve mypy error.
             assert self.config.epa.enc_jwk is not None
             keys.add(self.config.epa.enc_jwk)
             self.api.register_web_resource(

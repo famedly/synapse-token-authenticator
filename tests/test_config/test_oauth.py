@@ -1,9 +1,10 @@
 import pytest
-from jwcrypto.jwk import JWK
+from jwcrypto.jwk import JWK, JWKSet
 from pydantic import ValidationError
 
 from synapse_token_authenticator.claims_validator import (
     AllOf,
+    Equal,
     Exist,
     ListAnyOf,
     MatchesRegex,
@@ -15,7 +16,7 @@ from synapse_token_authenticator.config.oauth import (
     OAuthConfig,
 )
 from synapse_token_authenticator.http_auth import BasicAuth, BearerAuth, NoAuth
-from tests import get_jwk
+from tests import get_jwk, get_jwk_set
 
 
 class TestJwtValidationConfig:
@@ -60,6 +61,31 @@ class TestJwtValidationConfig:
         assert config.required_scopes == ["foo", "bar"]
         assert isinstance(config.jwk_set, JWK)
 
+    def test_jwt_validation_config_validator(self):
+        config = JwtValidationConfig(jwk_set=get_jwk(), validator=Exist())
+        assert config.validator == Exist()
+
+        config = JwtValidationConfig(jwk_set=get_jwk(), validator=["equal", "foo"])
+        assert config.validator == Equal("foo")
+
+    def test_jwt_validation_config_jwk_set_as_json_string(self):
+        jwk_str = get_jwk().export()
+        config = JwtValidationConfig(jwk_set=jwk_str)
+        assert isinstance(config.jwk_set, JWK)
+
+        jwk_set_str = get_jwk_set().export()
+        config = JwtValidationConfig(jwk_set=jwk_set_str)
+        assert isinstance(config.jwk_set, JWKSet)
+
+    def test_jwt_validation_config_jwk_set_as_dict(self):
+        jwk_dict = get_jwk().export(as_dict=True)
+        config = JwtValidationConfig(jwk_set=jwk_dict)
+        assert isinstance(config.jwk_set, JWK)
+
+        jwk_set_dict = get_jwk_set().export(as_dict=True)
+        config = JwtValidationConfig(jwk_set=jwk_set_dict)
+        assert isinstance(config.jwk_set, JWKSet)
+
     def test_jwt_validation_config_more_than_one_jwk_source_should_raise_error(
         self, tmp_path
     ):
@@ -78,6 +104,17 @@ class TestJwtValidationConfig:
                 jwk_file=str(jwk_path),
                 jwks_endpoint="https://example.com/.well-known/jwks.json",
             )
+
+    def test_jwt_validation_config_jwk_file_does_not_exist(self):
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_file="no_such_file.pem")
+
+    def test_jwt_validation_config_jwk_file_opens_and_loads(self, tmp_path):
+        jwk = JWK.generate(kty="RSA", size=2048)
+        jwk_path = tmp_path / "jwk.pem"
+        jwk_path.write_bytes(jwk.export_to_pem(private_key=True, password=None))
+        config = JwtValidationConfig(jwk_file=str(jwk_path))
+        assert isinstance(config.jwk_set, JWK)
 
     def test_jwt_validation_config_required_scopes_accepts_str(self):
         config = JwtValidationConfig(jwk_set=get_jwk(), required_scopes="foo bar")

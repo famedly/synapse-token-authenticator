@@ -62,6 +62,8 @@ class EPaConfig:
             return None
         if isinstance(value, JWK):
             return value
+        if isinstance(value, str):
+            return JWK.from_json(value)
         if isinstance(value, dict):
             return JWK(**value)
         return None
@@ -74,11 +76,15 @@ class EPaConfig:
         if isinstance(value, (JWKSet, JWK)):
             return value
         if isinstance(value, str):
-            return JWKSet.from_json(value)
-        if isinstance(value, dict) and "keys" in value:
-            return JWKSet.from_json(json.dumps(value))
+            if json.loads(value).get("keys"):
+                return JWKSet.from_json(value)
+            else:
+                return JWK.from_json(value)
         if isinstance(value, dict):
-            return JWK(**value)
+            if "keys" in value:
+                return JWKSet.from_json(json.dumps(value))
+            else:
+                return JWK(**value)
         return None
 
     @model_validator(mode="after")
@@ -87,15 +93,17 @@ class EPaConfig:
             self.enc_jwk is not None,
             self.enc_jwk_file is not None,
         ]
-        if sum(sources) != 1:
-            raise ValueError("Exactly one of enc_jwk or enc_jwk_file must be set")
-        if self.enc_jwk:
-            return self
-        elif self.enc_jwk_file:
-            with open(self.enc_jwk_file, "rb") as f:
-                self.enc_jwk = JWK.from_pem(f.read())
+        if sum(sources) == 1:
+            if self.enc_jwk:
                 return self
-        raise ValueError("No encryption JWK")
+            elif self.enc_jwk_file:
+                try:
+                    with open(self.enc_jwk_file, "rb") as f:
+                        self.enc_jwk = JWK.from_pem(f.read())
+                        return self
+                except FileNotFoundError:
+                    raise ValueError(f"enc_jwk file '{self.enc_jwk_file}' not found")
+        raise ValueError("Exactly one of enc_jwk or enc_jwk_file must be set")
 
     @model_validator(mode="after")
     def decide_jwk_set(self) -> Self:
@@ -104,16 +112,18 @@ class EPaConfig:
             self.jwk_file is not None,
             self.jwks_endpoint is not None,
         ]
-        if sum(sources) != 1:
-            raise ValueError(
-                "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
-            )
-        if self.jwk_set:
-            return self
-        elif self.jwk_file:
-            with open(self.jwk_file, "rb") as f:
-                self.jwk_set = JWK.from_pem(f.read())
+        if sum(sources) == 1:
+            if self.jwk_set:
                 return self
-        elif self.jwks_endpoint:
-            return self
-        raise ValueError("No JWK set")
+            elif self.jwk_file:
+                try:
+                    with open(self.jwk_file, "rb") as f:
+                        self.jwk_set = JWK.from_pem(f.read())
+                        return self
+                except FileNotFoundError:
+                    raise ValueError(f"jwk_file '{self.jwk_file}' not found")
+            elif self.jwks_endpoint:
+                return self
+        raise ValueError(
+            "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
+        )

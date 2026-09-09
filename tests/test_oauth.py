@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import json
 from copy import deepcopy
 from unittest import mock
 
@@ -20,6 +21,7 @@ from jwcrypto.jwk import JWKSet
 from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
+from synapse_token_authenticator.resources.metadata import MetadataResource
 from tests import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
 
 default_claims = {
@@ -577,3 +579,26 @@ class CustomFlowTests(ModuleApiTestCase):
             "alice@test.example",
         )
         assert result[0] == "@alice:example.test"
+
+    config_for_oauth_metadata = deepcopy(config_for_jwt)
+    config_for_oauth_metadata["modules"][0]["config"]["oauth"][
+        "expose_metadata_resource"
+    ] = {
+        "name": "com.famedly.login.token.oauth",
+        "something": "else",
+    }
+
+    @synapsetest.override_config(config_for_oauth_metadata)
+    def test_oauth_metadata_resource_is_registered(self):
+        path = "/_famedly/login/com.famedly.login.token.oauth"
+        resource = self.hs._module_web_resources.get(path)
+        assert isinstance(resource, MetadataResource)
+
+        request = mock.Mock()
+        body = resource.render_GET(request)
+        assert json.loads(body) == {
+            "name": "com.famedly.login.token.oauth",
+            "something": "else",
+        }
+        request.setHeader.assert_any_call(b"content-type", b"application/json")
+        request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")

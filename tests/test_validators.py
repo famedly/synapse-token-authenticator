@@ -3,6 +3,18 @@ import pytest
 from synapse_token_authenticator.claims_validator import parse_validator
 
 
+def test_parse_validator_unknown_type():
+    with pytest.raises(ValueError):
+        parse_validator(["unknown", "foo"])
+    with pytest.raises(ValueError):
+        parse_validator({"type": "unknown", "foo": "bar"})
+
+
+def test_parse_validator_invalid_type():
+    with pytest.raises(ValueError):
+        parse_validator("string input")
+
+
 def test_validator_exists():
     assert parse_validator(["exist"]).validate(None)
 
@@ -12,6 +24,20 @@ def test_validator_in():
     assert not parse_validator(["in", "foo"]).validate({"loo": 3})
     assert parse_validator(["in", "foo", ["equal", 3]]).validate({"foo": 3})
     assert not parse_validator(["in", "foo", ["equal", 3]]).validate({"foo": 4})
+
+
+def test_validator_in_with_empty_path():
+    with pytest.raises(ValueError):
+        parse_validator(["in", ""])
+    with pytest.raises(ValueError):
+        parse_validator(["in", []])
+    with pytest.raises(ValueError):
+        parse_validator(["in", None])
+
+
+def test_validator_in_with_non_dict_input():
+    assert not parse_validator(["in", "foo", ["equal", 3]]).validate(3)
+    assert not parse_validator(["in", "foo", ["equal", 3]]).validate(["foo", 3])
 
 
 def test_validator_not():
@@ -35,6 +61,16 @@ def test_validator_regex():
     assert not parse_validator(["regex", regexp]).validate("bad string")
 
 
+def test_validator_regex_non_str():
+    with pytest.raises(ValueError):
+        parse_validator(["regex", 3])
+
+
+def test_validator_regex_invalid_arguments():
+    with pytest.raises(ValueError):
+        parse_validator(["regex", 3, "extra"])
+
+
 def test_validator_all_of():
     assert parse_validator(["all_of", [["in", "foo"], ["in", "loo"]]]).validate(
         {"foo": 3, "loo": 4}
@@ -49,6 +85,16 @@ def test_validator_any_of():
     assert parse_validator(["any_of", [["in", "foo"], ["in", "loo"]]]).validate(
         {"foo": 3, "loo": 4}
     )
+    assert parse_validator(
+        {
+            "type": "any_of",
+            "validators": [
+                {"type": "in", "path": "foo"},
+                {"type": "in", "path": "loo"},
+            ],
+        }
+    ).validate({"foo": 3, "loo": 4})
+
     assert parse_validator(["any_of", [["in", "foo"], ["in", "loo"]]]).validate(
         {"foo": 3}
     )
@@ -56,6 +102,15 @@ def test_validator_any_of():
         {"boo": 3}
     )
     assert not parse_validator(["any_of", []]).validate({})
+
+
+def test_validator_any_of_with_non_dict_input():
+    assert not parse_validator(["any_of", [["in", "foo"], ["in", "loo"]]]).validate(
+        "foo"
+    )
+    assert not parse_validator(["any_of", [["in", "foo"], ["in", "loo"]]]).validate(
+        ["foo", 3]
+    )
 
 
 def test_validator_list_all_of():
@@ -66,6 +121,16 @@ def test_validator_list_all_of():
     assert not parse_validator(["list_all_of", ["in", "foo"]]).validate(
         [{"foo": 3}, {"loo": 4}]
     )
+    assert parse_validator(
+        {"type": "list_all_of", "validator": {"type": "in", "path": "foo"}}
+    ).validate([{"foo": 3}, {"foo": 4}])
+
+
+def test_validator_list_all_of_with_non_list_input():
+    assert not parse_validator(["list_all_of", ["in", "foo"]]).validate("foo")
+    assert not parse_validator(["list_all_of", ["in", "foo"]]).validate(
+        {"foo": 3, "loo": 4}
+    )
 
 
 def test_validator_list_any_of():
@@ -75,6 +140,16 @@ def test_validator_list_any_of():
     assert not parse_validator(["list_any_of", ["in", "foo"]]).validate([])
     assert parse_validator(["list_any_of", ["in", "foo"]]).validate(
         [{"foo": 3}, {"loo": 4}]
+    )
+    assert parse_validator(
+        {"type": "list_any_of", "validator": {"type": "in", "path": "foo"}}
+    ).validate([{"foo": 3}, {"foo": 4}])
+
+
+def test_validator_list_any_of_with_non_list_input():
+    assert not parse_validator(["list_any_of", ["in", "foo"]]).validate("foo")
+    assert not parse_validator(["list_any_of", ["in", "foo"]]).validate(
+        {"foo": 3, "loo": 4}
     )
 
 

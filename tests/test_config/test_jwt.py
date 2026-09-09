@@ -20,6 +20,10 @@ class TestJwtConfig:
         with pytest.raises(ValidationError):
             JwtConfig(algorithm="invalid")
 
+    def test_jwt_config_valid_algorithm(self):
+        config = JwtConfig(secret="secret", algorithm="HS256")
+        assert config.algorithm == "HS256"
+
     def test_jwt_config_missing_secret_or_keyfile(self):
         with pytest.raises(ValidationError):
             JwtConfig()

@@ -13,7 +13,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+from pathlib import Path
 from unittest import mock
+
+import pytest
+from jwcrypto.jwk import JWK
 
 import tests.unittest as synapsetest
 from tests import _DEFAULT_TOKEN_SECRET, ModuleApiTestCase, get_jwt_token
@@ -157,3 +161,29 @@ class JWTTests(ModuleApiTestCase):
         self.assertIdentical(
             await self.module_api.is_user_admin("@alice:example.test"), True
         )
+
+
+class JWTKeyfileTests(ModuleApiTestCase):
+    @pytest.fixture(autouse=True)
+    def _create_jwt_keyfile(self, tmp_path: Path) -> None:
+        self._jwt_key = JWK.generate(kty="RSA", size=2048)
+        keyfile = tmp_path / "jwk.pem"
+        keyfile.write_bytes(
+            self._jwt_key.export_to_pem(private_key=True, password=None)
+        )
+        self._jwt_keyfile = str(keyfile)
+
+    def default_config(self) -> dict:
+        conf = super().default_config()
+        conf["modules"][0]["config"]["jwt"] = {
+            "keyfile": self._jwt_keyfile,
+            "algorithm": "RS256",
+        }
+        return conf
+
+    async def test_valid_login_with_keyfile(self):
+        token = get_jwt_token("alice", algorithm="RS256", key=self._jwt_key)
+        result = await self.hs.mockmod.check_jwt_auth(
+            "alice", "com.famedly.login.token", {"token": token}
+        )
+        assert result[0] == "@alice:example.test"
