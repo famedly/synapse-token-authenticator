@@ -476,6 +476,19 @@ class TokenAuthenticator:
             logger.info("%s", e)
             return None
 
+        # A token must reference a user id itself. If neither token carries a
+        # localpart or fully qualified user id, the reconciled value would be
+        # sourced solely from the client-supplied username, which would let a
+        # holder of any valid token authenticate as an arbitrary user.
+        if (
+            jwt_localpart is None
+            and jwt_fq_uid is None
+            and introspection_localpart is None
+            and introspection_fq_uid is None
+        ):
+            logger.info("Neither token references a user id")
+            return None
+
         if localpart is None and fully_qualified_uid is None:
             logger.info("No user id was provided")
             return None
