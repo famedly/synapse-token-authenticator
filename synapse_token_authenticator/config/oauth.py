@@ -34,6 +34,7 @@ class JwtValidationConfig:
     require_expiry: bool = False
     localpart_path: Path | None = None
     fq_uid_path: Path | None = None
+    alternative_fq_uids_path: Path | None = None
     displayname_path: Path | None = None
     admin_path: PathList | None = None
     email_path: Path | None = None
@@ -91,6 +92,23 @@ class JwtValidationConfig:
             "Exactly one of jwk_set, jwk_file, or jwks_endpoint must be set"
         )
 
+    @model_validator(mode="after")
+    def validate_alternative_fq_uids_path_option_is_viable(self) -> Self:
+        # Guard for an empty list if the value is present. Borrow that a falsey value can work both for an empty list
+        # and an empty string, but exclude None because it is a valid option.
+        if (
+            not self.alternative_fq_uids_path
+            and self.alternative_fq_uids_path is not None
+        ):
+            raise ValueError(
+                "alternative_fq_uids_path must not be empty or must be omitted"
+            )
+        if self.alternative_fq_uids_path and (self.localpart_path or self.fq_uid_path):
+            raise ValueError(
+                "localpart_path and/or user_id_path cannot be used with alternative_fq_uids_path"
+            )
+        return self
+
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True, extra="ignore"))
 class IntrospectionValidationConfig:
@@ -99,6 +117,7 @@ class IntrospectionValidationConfig:
     auth: HttpAuth = Field(default_factory=NoAuth)
     localpart_path: Path | None = None
     fq_uid_path: Path | None = None
+    alternative_fq_uids_path: Path | None = None
     displayname_path: Path | None = None
     admin_path: PathList | None = None
     email_path: Path | None = None
@@ -115,6 +134,23 @@ class IntrospectionValidationConfig:
     @classmethod
     def coerce_auth(cls, value: Any) -> HttpAuth:
         return parse_auth(value, context=cls.__name__)
+
+    @model_validator(mode="after")
+    def validate_alternative_fq_uids_path_option_is_viable(self) -> Self:
+        # Guard for an empty list if the value is present. Borrow that a falsey value can work both for an empty list
+        # and an empty string, but exclude None because it is a valid option.
+        if (
+            not self.alternative_fq_uids_path
+            and self.alternative_fq_uids_path is not None
+        ):
+            raise ValueError(
+                "alternative_fq_uids_path must not be empty or must be omitted"
+            )
+        if self.alternative_fq_uids_path and (self.localpart_path or self.fq_uid_path):
+            raise ValueError(
+                "localpart_path and/or user_id_path cannot be used with alternative_fq_uids_path"
+            )
+        return self
 
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True, extra="ignore"))
@@ -155,5 +191,40 @@ class OAuthConfig:
         if not (self.jwt_validation or self.introspection_validation):
             raise ValueError(
                 "Neither jwt_validation nor introspection_validation was specified"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def ensure_alternate_fq_uid_paths_do_not_counter_other_paths(self) -> Self:
+        # Since both the JWT and Introspection validation sections can contain alternative_fq_uids_path and the other
+        # user id related paths, make sure they do not co-exist between the classes. This currently constitutes
+        # undefined behavior as the resolution order has not been fully worked out.
+        #
+        # Clashing values on same validation sections are checked on each respective class.
+
+        if (
+            # both have to exist
+            self.jwt_validation
+            and self.introspection_validation
+            # but, both should not be cross defined
+            and (
+                (
+                    self.jwt_validation.alternative_fq_uids_path
+                    and (
+                        self.introspection_validation.localpart_path
+                        or self.introspection_validation.fq_uid_path
+                    )
+                )
+                or (
+                    self.introspection_validation.alternative_fq_uids_path
+                    and (
+                        self.jwt_validation.localpart_path
+                        or self.jwt_validation.fq_uid_path
+                    )
+                )
+            )
+        ):
+            raise ValueError(
+                "Cannot have `alternative_fq_uid_path` defined on one form of validation with the other using a different `*_path`-like option."
             )
         return self
