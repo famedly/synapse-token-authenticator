@@ -25,7 +25,6 @@ class TestJwtValidationConfig:
         assert config.validator == Exist()
         assert config.require_expiry is False
         assert config.localpart_path is None
-        assert config.user_id_path is None
         assert config.fq_uid_path is None
         assert config.displayname_path is None
         assert config.admin_path is None
@@ -40,7 +39,6 @@ class TestJwtValidationConfig:
             validator=["list_any_of", ["in", "foo"]],
             require_expiry=True,
             localpart_path="urn:messaging:matrix:localpart",
-            user_id_path=["urn", "user"],
             fq_uid_path="urn:messaging:matrix:mxid",
             displayname_path="name",
             admin_path=[["roles", "Admin"], ["roles", "OrgAdmin"]],
@@ -53,7 +51,6 @@ class TestJwtValidationConfig:
         assert isinstance(config.validator, ListAnyOf)
         assert config.require_expiry is True
         assert config.localpart_path == "urn:messaging:matrix:localpart"
-        assert config.user_id_path == ["urn", "user"]
         assert config.fq_uid_path == "urn:messaging:matrix:mxid"
         assert config.displayname_path == "name"
         assert config.admin_path == [["roles", "Admin"], ["roles", "OrgAdmin"]]
@@ -138,7 +135,6 @@ class TestIntrospectionValidationConfig:
         assert config.validator == Exist()
         assert config.auth == NoAuth()
         assert config.localpart_path is None
-        assert config.user_id_path is None
         assert config.fq_uid_path is None
         assert config.displayname_path is None
         assert config.admin_path is None
@@ -151,7 +147,6 @@ class TestIntrospectionValidationConfig:
             auth={"type": "bearer", "token": "secret-token"},
             validator={"type": "regex", "regex": "hello."},
             localpart_path="localpart",
-            user_id_path=["profile", "id"],
             fq_uid_path="@user:example.test",
             displayname_path="name",
             admin_path=["admin"],
@@ -162,7 +157,6 @@ class TestIntrospectionValidationConfig:
         assert config.auth == BearerAuth(token="secret-token")
         assert isinstance(config.validator, MatchesRegex)
         assert config.localpart_path == "localpart"
-        assert config.user_id_path == ["profile", "id"]
         assert config.fq_uid_path == "@user:example.test"
         assert config.displayname_path == "name"
         assert config.admin_path == ["admin"]

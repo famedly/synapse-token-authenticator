@@ -181,7 +181,6 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist))                                                                                      |
 | `require_expiry`   | Bool (defaults to `false`)                                                                                                                     |
 | `localpart_path`   | [`Path`](#path) (optional)                                                                                                                     |
-| `user_id_path`     | [`Path`](#path) (optional)                                                                                                                     |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                                                                                                     |
 | `displayname_path` | [`Path`](#path) (optional)                                                                                                                     |
 | `admin_path`       | [`PathList`](#pathlist) (optional)                                                                                                             |
@@ -205,7 +204,6 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 | `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist)) |
 | `auth`             | [`HttpAuth`](#httpauth) (optional)                        |
 | `localpart_path`   | [`Path`](#path) (optional)                                |
-| `user_id_path`     | [`Path`](#path) (optional)                                |
 | `fq_uid_path`      | [`Path`](#path) (optional)                                |
 | `displayname_path` | [`Path`](#path) (optional)                                |
 | `admin_path`       | [`PathList`](#pathlist) (optional)                        |
