@@ -171,6 +171,8 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 - At least one of `jwt_validation` or `introspection_validation` must be defined.
 - `expose_metadata_resource` must be an object with `name` field. The object will be exposed at `/_famedly/login/{expose_metadata_resource.name}`.
 
+At least one of the tokens (the JWT or the introspection response) must reference a user id via its `localpart_path` or `fq_uid_path`. If neither token provides a user id, authentication is rejected, even when `username_type` would otherwise allow deriving the user id from the client-supplied username, otherwise a holder of any valid token could authenticate as an arbitrary user.
+
 #### JwtValidationConfig
 
 [RFC 7519 - JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
