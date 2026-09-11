@@ -287,7 +287,7 @@ def mock_idp_post(uri, data_raw, **kwargs):
     return Response(code=404)
 
 
-def mock_for_oauth(method, uri, data=None, **extrargs):
+def mock_for_oauth(method, uri, data=None, **extrargs) -> Response:
     if (method, uri) == ("POST", "http://idp.test/introspect"):
         data = parse_qs(data.decode())
         if "token" in data:
