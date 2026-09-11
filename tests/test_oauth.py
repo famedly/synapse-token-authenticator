@@ -22,7 +22,13 @@ from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
 from synapse_token_authenticator.resources.metadata import MetadataResource
-from tests import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
+from tests import (
+    ModuleApiTestCase,
+    get_jwk,
+    get_jwt_token,
+    mock_for_oauth,
+    mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+)
 
 default_claims: JsonDict = {
     "urn:messaging:matrix:localpart": "alice",
@@ -742,7 +748,8 @@ class CustomFlowTests(ModuleApiTestCase):
         config_for_jwt_alternate_fq_uids_with_nonempty_intro_config
     )
     @mock.patch(
-        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
     )
     async def test_jwt_validation_some_intro_with_alt_fq_uid_path(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
@@ -752,7 +759,8 @@ class CustomFlowTests(ModuleApiTestCase):
 
     @synapsetest.override_config(config_for_intro_alternate_fq_uids)
     @mock.patch(
-        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
     )
     async def test_intro_validation_no_jwt_with_alt_fq_uid_path(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
@@ -764,7 +772,8 @@ class CustomFlowTests(ModuleApiTestCase):
         config_for_intro_alternate_fq_uids_with_nonempty_jwt_config
     )
     @mock.patch(
-        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
     )
     async def test_intro_validation_some_jwt_with_alt_fq_uid_path(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
@@ -774,7 +783,8 @@ class CustomFlowTests(ModuleApiTestCase):
 
     @synapsetest.override_config(config_for_both_alternate_fq_uids)
     @mock.patch(
-        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
     )
     async def test_both_validation_with_alt_fq_uid_path(self, *args) -> None:
         token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
@@ -794,6 +804,35 @@ class CustomFlowTests(ModuleApiTestCase):
         alternative_fq_uids_claims["alternative_fq_uids"] = "@alice:example.test"
 
         token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+        # Localparts don't either
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3 is None
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4 is None
+
+    @synapsetest.override_config(config_for_both_alternate_fq_uids)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    async def test_alternate_fq_uids_path_no_claim_found(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=default_claims)
 
         # Full mxids won't work if they are not in the claims list
         result1 = await self.hs.mockmod.check_oauth(
