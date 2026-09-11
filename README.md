@@ -146,8 +146,7 @@ oauth:
 
 `jwt_validation` and `introspection_validation` contain several `*_path` optional fields. Each of these, if specified, will be used to source either localpart, user id, fully qualified user id, admin permission, or email address from jwt claims and introspection response. The values will be compared for equality. If they differ, authentication will fail.
 
-**WARNING**: It is possible to configure in such a way that authentication would always fail. If `username_type` is `null`, and `localpart_path` and `fq_uid_path` are also not specified, no user id data can be sourced, thus also leading to failure.
-But if `username_type` is `null`, but either `localpart_path` or `fq_uid_path` is provided, the authentication process can continue.
+**WARNING**: A user id must be provided by at least one of the tokens (the JWT or the introspection response) via its `localpart_path` or `fq_uid_path`. If neither token provides a user id, authentication is rejected.
 
 If `notify_on_registration` is set then `notify_on_registration.url` will be called when a new user is registered with this body:
 
@@ -170,8 +169,6 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 
 - At least one of `jwt_validation` or `introspection_validation` must be defined.
 - `expose_metadata_resource` must be an object with `name` field. The object will be exposed at `/_famedly/login/{expose_metadata_resource.name}`.
-
-At least one of the tokens (the JWT or the introspection response) must reference a user id via its `localpart_path` or `fq_uid_path`. If neither token provides a user id, authentication is rejected, even when `username_type` would otherwise allow deriving the user id from the client-supplied username, otherwise a holder of any valid token could authenticate as an arbitrary user.
 
 #### JwtValidationConfig
 
