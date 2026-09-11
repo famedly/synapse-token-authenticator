@@ -33,7 +33,6 @@ class JwtValidationConfig:
     # Config, but we keep it to False for backwards compatibility with existing config.
     require_expiry: bool = False
     localpart_path: Path | None = None
-    user_id_path: Path | None = None
     fq_uid_path: Path | None = None
     displayname_path: Path | None = None
     admin_path: PathList | None = None
@@ -99,7 +98,6 @@ class IntrospectionValidationConfig:
     validator: Validator = Field(default_factory=Exist)
     auth: HttpAuth = Field(default_factory=NoAuth)
     localpart_path: Path | None = None
-    user_id_path: Path | None = None
     fq_uid_path: Path | None = None
     displayname_path: Path | None = None
     admin_path: PathList | None = None
