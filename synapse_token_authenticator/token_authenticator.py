@@ -464,7 +464,7 @@ class TokenAuthenticator:
                     fully_qualified_uid = username_fq_uid
                 elif jwt_fq_uid is None and intro_fq_uid is None:
                     raise ClaimsMismatchError(
-                        "No claims had the attempted username: %s", username
+                        f"No claims had the attempted username: {username}",
                     )
                 elif jwt_fq_uid is None or intro_fq_uid is None:
                     # Let whichever is not None win
