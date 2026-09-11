@@ -22,9 +22,15 @@ from synapse.types import JsonDict
 
 import tests.unittest as synapsetest
 from synapse_token_authenticator.resources.metadata import MetadataResource
-from tests import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
+from tests import (
+    ModuleApiTestCase,
+    get_jwk,
+    get_jwt_token,
+    mock_for_oauth,
+    mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+)
 
-default_claims = {
+default_claims: JsonDict = {
     "urn:messaging:matrix:localpart": "alice",
     "urn:messaging:matrix:mxid": "@alice:example.test",
     "name": "Alice",
@@ -36,6 +42,13 @@ default_claims = {
     },
     "email": "alice@test.example",
 }
+
+alternative_fq_uids_claims = deepcopy(default_claims)
+# The key of "alternative_fq_uids" is what is used in the configs for the tests that use this
+alternative_fq_uids_claims["alternative_fq_uids"] = [
+    "@alice:example.test",
+    "@alice2:example.test",
+]
 
 
 class CustomFlowTests(ModuleApiTestCase):
@@ -602,3 +615,243 @@ class CustomFlowTests(ModuleApiTestCase):
         }
         request.setHeader.assert_any_call(b"content-type", b"application/json")
         request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")
+
+    ###
+    # A collection of config fragments to run the same battery of tests over. They should all come out with the same
+    # result. Start with the base and add or subtract to it what is needed. There are 5 not including the base.
+    ###
+
+    config_for_alternative_fq_uids_path_test_base: JsonDict = {
+        "modules": [
+            {
+                "module": "synapse_token_authenticator.TokenAuthenticator",
+                "config": {
+                    "oauth": {
+                        "jwt_validation": {
+                            "validator": ["exist"],
+                            "require_expiry": False,
+                            "jwk_set": get_jwk(),
+                        },
+                        "introspection_validation": {
+                            "endpoint": "http://idp.test/introspect",
+                            "validator": ["in", "active", ["equal", True]],
+                            "required_scopes": "foo bar",
+                        },
+                        "username_type": "user_id",
+                        # turn this off, for no reason other than mocks are messy and this isn't needed for testing
+                        "check_external_id": False,
+                    },
+                },
+            }
+        ]
+    }
+
+    # A config that uses only the jwt validation alternative_fq_uids_path and does not include any introspection
+    # validation data.
+    config_for_jwt_alternate_fq_uids = deepcopy(
+        config_for_alternative_fq_uids_path_test_base
+    )
+    config_for_jwt_alternate_fq_uids["modules"][0]["config"]["oauth"]["jwt_validation"][
+        "alternative_fq_uids_path"
+    ] = "alternative_fq_uids"
+    # remove the "introspection_validation" data completely. This helps check that our checks for non-existence work
+    config_for_jwt_alternate_fq_uids["modules"][0]["config"]["oauth"].pop(
+        "introspection_validation"
+    )
+
+    # A config that uses only the jwt validation alternative_fq_uids_path and includes irrelevant data that is not used
+    # in the introspection validation data.
+    config_for_jwt_alternate_fq_uids_with_nonempty_intro_config = deepcopy(
+        config_for_alternative_fq_uids_path_test_base
+    )
+    config_for_jwt_alternate_fq_uids_with_nonempty_intro_config["modules"][0]["config"][
+        "oauth"
+    ]["jwt_validation"]["alternative_fq_uids_path"] = "alternative_fq_uids"
+
+    # A config that uses only the introspection validation alternative_fq_uids_path and does not include any jwt
+    # validation data.
+    config_for_intro_alternate_fq_uids = deepcopy(
+        config_for_alternative_fq_uids_path_test_base
+    )
+    config_for_intro_alternate_fq_uids["modules"][0]["config"]["oauth"][
+        "introspection_validation"
+    ]["alternative_fq_uids_path"] = "alternative_fq_uids"
+    # remove the "jwt_validation" data completely. This helps check that our checks for non-existence work
+    config_for_intro_alternate_fq_uids["modules"][0]["config"]["oauth"].pop(
+        "jwt_validation"
+    )
+
+    # A config that uses only the introspection validation alternative_fq_uids_path and includes irrelevant data that is
+    # not used in jwt validation data.
+    config_for_intro_alternate_fq_uids_with_nonempty_jwt_config = deepcopy(
+        config_for_alternative_fq_uids_path_test_base
+    )
+    config_for_intro_alternate_fq_uids_with_nonempty_jwt_config["modules"][0]["config"][
+        "oauth"
+    ]["introspection_validation"]["alternative_fq_uids_path"] = "alternative_fq_uids"
+
+    # A config that uses both jwt and introspection validation
+    config_for_both_alternate_fq_uids = deepcopy(
+        config_for_alternative_fq_uids_path_test_base
+    )
+    config_for_both_alternate_fq_uids["modules"][0]["config"]["oauth"][
+        "jwt_validation"
+    ]["alternative_fq_uids_path"] = "alternative_fq_uids"
+    config_for_both_alternate_fq_uids["modules"][0]["config"]["oauth"][
+        "introspection_validation"
+    ]["alternative_fq_uids_path"] = "alternative_fq_uids"
+
+    async def _test_valid_logins_alternate_fq_uids(self, token: str):
+        # Full mxids work if in the list above
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1[0] == "@alice:example.test"
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice2:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2[0] == "@alice2:example.test"
+
+        # localparts of an mxid work too
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3[0] == "@alice:example.test"
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice2", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4[0] == "@alice2:example.test"
+
+    async def _test_invalid_logins_alternate_fq_uids(self, token: str) -> None:
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        # Localparts don't either
+        result2 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+    @synapsetest.override_config(config_for_jwt_alternate_fq_uids)
+    async def test_jwt_validation_no_intro_with_alt_fq_uid_path(self) -> None:
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        await self._test_valid_logins_alternate_fq_uids(token)
+        await self._test_invalid_logins_alternate_fq_uids(token)
+
+    @synapsetest.override_config(
+        config_for_jwt_alternate_fq_uids_with_nonempty_intro_config
+    )
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+    )
+    async def test_jwt_validation_some_intro_with_alt_fq_uid_path(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        await self._test_valid_logins_alternate_fq_uids(token)
+        await self._test_invalid_logins_alternate_fq_uids(token)
+
+    @synapsetest.override_config(config_for_intro_alternate_fq_uids)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+    )
+    async def test_intro_validation_no_jwt_with_alt_fq_uid_path(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        await self._test_valid_logins_alternate_fq_uids(token)
+        await self._test_invalid_logins_alternate_fq_uids(token)
+
+    @synapsetest.override_config(
+        config_for_intro_alternate_fq_uids_with_nonempty_jwt_config
+    )
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+    )
+    async def test_intro_validation_some_jwt_with_alt_fq_uid_path(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        await self._test_valid_logins_alternate_fq_uids(token)
+        await self._test_invalid_logins_alternate_fq_uids(token)
+
+    @synapsetest.override_config(config_for_both_alternate_fq_uids)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request",
+        side_effect=mock_for_oauth_with_alternative_fq_uids_in_claim_payload,
+    )
+    async def test_both_validation_with_alt_fq_uid_path(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        await self._test_valid_logins_alternate_fq_uids(token)
+        await self._test_invalid_logins_alternate_fq_uids(token)
+
+    # This particular test is more about the claims being wrong than the config, so any custom config would work
+    @synapsetest.override_config(config_for_jwt_alternate_fq_uids)
+    async def test_alternate_fq_uids_path_not_a_list_is_invalid_and_cannot_be_used(
+        self, *args
+    ) -> None:
+        # Need slightly custom claim for this one
+        alternative_fq_uids_claims = deepcopy(default_claims)
+        # key is the same reference as what `alternative_fq_uids_path` is set to above in the config, but this time
+        # make sure it is not a list format
+        alternative_fq_uids_claims["alternative_fq_uids"] = "@alice:example.test"
+
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+        # Localparts don't either
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3 is None
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4 is None
+
+    @synapsetest.override_config(config_for_both_alternate_fq_uids)
+    @mock.patch(
+        "synapse.http.client.SimpleHttpClient.request", side_effect=mock_for_oauth
+    )
+    async def test_alternate_fq_uids_path_no_claim_found(self, *args) -> None:
+        token = get_jwt_token("aliceid", claims=default_claims)
+
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+        # Localparts don't either
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3 is None
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4 is None

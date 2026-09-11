@@ -144,10 +144,12 @@ oauth:
 | `registration_enabled`     | Bool (defaults to `false`)                                                   |
 | `check_external_id`        | Bool (defaults to `true`)                                                    |
 
-`jwt_validation` and `introspection_validation` contain several `*_path` optional fields. Each of these, if specified, will be used to source either localpart, user id, fully qualified user id, admin permission, or email address from jwt claims and introspection response. The values will be compared for equality. If they differ, authentication will fail.
+`jwt_validation` and `introspection_validation` contain several `*_path` optional fields. Each of these, if specified, will be used to source either localpart, fully qualified user id, admin permission, or email address from jwt claims and introspection response. The values will be compared for equality. If they differ, authentication will fail.
 
 **WARNING**: It is possible to configure in such a way that authentication would always fail. If `username_type` is `null`, and `localpart_path` and `fq_uid_path` are also not specified, no user id data can be sourced, thus also leading to failure.
 But if `username_type` is `null`, but either `localpart_path` or `fq_uid_path` is provided, the authentication process can continue.
+
+Alternatively, if either `jwt_validation` and/or `introspection_validation` have `alternative_fq_uids_path` set then use of `localpart_path` or `fq_uid_path` in the other section is forbidden. `username_type` will be ignored for this option as only fully qualified user ids are currently supported.
 
 If `notify_on_registration` is set then `notify_on_registration.url` will be called when a new user is registered with this body:
 
@@ -176,39 +178,47 @@ If `notify_on_registration` is set then `notify_on_registration.url` will be cal
 [RFC 7519 - JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
 
 
-| Parameter          | Type                                                                                                                                           |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist))                                                                                      |
-| `require_expiry`   | Bool (defaults to `false`)                                                                                                                     |
-| `localpart_path`   | [`Path`](#path) (optional)                                                                                                                     |
-| `fq_uid_path`      | [`Path`](#path) (optional)                                                                                                                     |
-| `displayname_path` | [`Path`](#path) (optional)                                                                                                                     |
-| `admin_path`       | [`PathList`](#pathlist) (optional)                                                                                                             |
-| `email_path`       | [`Path`](#path) (optional)                                                                                                                     |
-| `required_scopes`  | Space separated string or a list of strings (optional)                                                                                         |
-| `jwk_set`          | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
-| `jwk_file`         | String (optional)                                                                                                                              |
-| `jwks_endpoint`    | String (optional)                                                                                                                              |
+| Parameter                 | Type                                                                                                                                           |
+|---------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `validator`               | [`Validator`](#validator) (defaults to [`Exist`](#exist))                                                                                      |
+| `require_expiry`          | Bool (defaults to `false`)                                                                                                                     |
+| `localpart_path`          | [`Path`](#path) (optional)                                                                                                                     |
+| `fq_uid_path`             | [`Path`](#path) (optional)                                                                                                                     |
+| `alternative_fq_uid_path` | [`Path`](#path) (optional)                                                                                                                     |
+| `displayname_path`        | [`Path`](#path) (optional)                                                                                                                     |
+| `admin_path`              | [`PathList`](#pathlist) (optional)                                                                                                             |
+| `email_path`              | [`Path`](#path) (optional)                                                                                                                     |
+| `required_scopes`         | Space separated string or a list of strings (optional)                                                                                         |
+| `jwk_set`                 | [JWKSet](https://datatracker.ietf.org/doc/html/rfc7517#section-5) or [JWK](https://datatracker.ietf.org/doc/html/rfc7517#section-4) (optional) |
+| `jwk_file`                | String (optional)                                                                                                                              |
+| `jwks_endpoint`           | String (optional)                                                                                                                              |
 
 **Requirements**
 
 - Exactly one of `jwk_set`, `jwk_file`, or `jwks_endpoint` must be specified. They are mutually exclusive and configuring more than one will result in a configuration error.
+- If using `alternative_fq_uid_path`, then omit `localpart_path` and `fq_uid_path`. This or those, not both.
 
 #### IntrospectionValidationConfig
 
 [RFC 7662 - OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
 
-| Parameter          | Type                                                      |
-| ------------------ | --------------------------------------------------------- |
-| `endpoint`         | String                                                    |
-| `validator`        | [`Validator`](#validator) (defaults to [`Exist`](#exist)) |
-| `auth`             | [`HttpAuth`](#httpauth) (optional)                        |
-| `localpart_path`   | [`Path`](#path) (optional)                                |
-| `fq_uid_path`      | [`Path`](#path) (optional)                                |
-| `displayname_path` | [`Path`](#path) (optional)                                |
-| `admin_path`       | [`PathList`](#pathlist) (optional)                        |
-| `email_path`       | [`Path`](#path) (optional)                                |
-| `required_scopes`  | Space separated string or a list of strings (optional)    |
+| Parameter                 | Type                                                      |
+|---------------------------|-----------------------------------------------------------|
+| `endpoint`                | String                                                    |
+| `validator`               | [`Validator`](#validator) (defaults to [`Exist`](#exist)) |
+| `auth`                    | [`HttpAuth`](#httpauth) (optional)                        |
+| `localpart_path`          | [`Path`](#path) (optional)                                |
+| `fq_uid_path`             | [`Path`](#path) (optional)                                |
+| `alternative_fq_uid_path` | [`Path`](#path) (optional)                                |
+| `displayname_path`        | [`Path`](#path) (optional)                                |
+| `admin_path`              | [`PathList`](#pathlist) (optional)                        |
+| `email_path`              | [`Path`](#path) (optional)                                |
+| `required_scopes`         | Space separated string or a list of strings (optional)    |
+**Requirements**
+
+- If using `alternative_fq_uid_path`, then omit `localpart_path` and `fq_uid_path`. This or those, not both.
+
+**Notes**
 
 Keep in mind, that default validator will always pass. According to the [spec](https://datatracker.ietf.org/doc/html/rfc7662), you probably want at least
 
