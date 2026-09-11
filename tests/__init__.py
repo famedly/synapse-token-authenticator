@@ -309,6 +309,7 @@ def mock_for_oauth(method, uri, data=None, **extrargs) -> Response:
                 "email": "alice@test.example",
                 "sub": "aliceid",
                 "iss": "http://test.example",
+                "alternative_fq_uids": ["@alice:example.test", "@alice2:example.test"],
             }
         )
     if (method, uri) == ("POST", "http://iop.test/notify"):

@@ -26,6 +26,7 @@ class TestJwtValidationConfig:
         assert config.require_expiry is False
         assert config.localpart_path is None
         assert config.fq_uid_path is None
+        assert config.alternative_fq_uids_path is None
         assert config.displayname_path is None
         assert config.admin_path is None
         assert config.email_path is None
@@ -126,6 +127,15 @@ class TestJwtValidationConfig:
         assert config.jwk_set is None
         assert config.jwks_endpoint == "https://idp.example/jwks"
 
+    def test_jwt_validation_config_alternative_fq_uids_path_fails_on_empty_string_or_list(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_set=get_jwk(), alternative_fq_uids_path="")
+
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_set=get_jwk(), alternative_fq_uids_path=[])
+
 
 class TestIntrospectionValidationConfig:
     def test_introspection_validation_config_defaults(self):
@@ -166,6 +176,18 @@ class TestIntrospectionValidationConfig:
     def test_introspection_validation_config_missing_endpoint(self):
         with pytest.raises(ValidationError):
             IntrospectionValidationConfig()
+
+    def test_introspection_validation_config_alternative_fq_uids_path_fails_on_empty_string_or_list(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            IntrospectionValidationConfig(
+                endpoint="https://example.com", alternative_fq_uids_path=""
+            )
+        with pytest.raises(ValidationError):
+            IntrospectionValidationConfig(
+                endpoint="https://example.com", alternative_fq_uids_path=[]
+            )
 
 
 class TestNotifyOnRegistration:
