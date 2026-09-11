@@ -106,6 +106,69 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         assert result is None
 
+    config_no_userid_path: JsonDict = {
+        "modules": [
+            {
+                "module": "synapse_token_authenticator.TokenAuthenticator",
+                "config": {
+                    "oauth": {
+                        "jwt_validation": {
+                            "validator": ["exist"],
+                            "require_expiry": False,
+                            "jwk_set": get_jwk(),
+                        },
+                        "username_type": "user_id",
+                    },
+                },
+            }
+        ]
+    }
+
+    @synapsetest.override_config(config_no_userid_path)
+    async def test_login_rejected_when_tokens_lack_userid(self, *args):
+        # Neither localpart_path nor fq_uid_path is configured, so the token
+        # references no user id. The login must be rejected instead of trusting
+        # the client-supplied username (which would allow authing as any user).
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result is None
+
+    config_fq_uid_only: JsonDict = {
+        "modules": [
+            {
+                "module": "synapse_token_authenticator.TokenAuthenticator",
+                "config": {
+                    "oauth": {
+                        "jwt_validation": {
+                            "validator": ["exist"],
+                            "require_expiry": False,
+                            "fq_uid_path": "urn:messaging:matrix:mxid",
+                            "jwk_set": get_jwk(),
+                        },
+                        "username_type": "user_id",
+                    },
+                },
+            }
+        ]
+    }
+
+    @synapsetest.override_config(config_fq_uid_only)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
+    async def test_login_accepted_when_token_only_has_fq_uid(self, *args):
+        # A token referencing a user id via fq_uid_path only (no localpart_path)
+        # must still be accepted.
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result[0] == "@alice:example.test"
+
     config_for_jwt: JsonDict = {
         "modules": [
             {
@@ -115,6 +178,7 @@ class CustomFlowTests(ModuleApiTestCase):
                         "jwt_validation": {
                             "validator": ["exist"],
                             "require_expiry": False,
+                            "localpart_path": "urn:messaging:matrix:localpart",
                             "jwk_set": get_jwk(),
                         },
                         "username_type": "user_id",
