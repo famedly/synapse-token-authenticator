@@ -24,7 +24,7 @@ import tests.unittest as synapsetest
 from synapse_token_authenticator.resources.metadata import MetadataResource
 from tests import ModuleApiTestCase, get_jwk, get_jwt_token, mock_for_oauth
 
-default_claims = {
+default_claims: JsonDict = {
     "urn:messaging:matrix:localpart": "alice",
     "urn:messaging:matrix:mxid": "@alice:example.test",
     "name": "Alice",
@@ -602,3 +602,105 @@ class CustomFlowTests(ModuleApiTestCase):
         }
         request.setHeader.assert_any_call(b"content-type", b"application/json")
         request.setHeader.assert_any_call(b"access-control-allow-origin", b"*")
+
+    config_for_jwt_alternate_fq_uids = deepcopy(config_for_jwt)
+    config_for_jwt_alternate_fq_uids["modules"][0]["config"]["oauth"]["jwt_validation"][
+        "alternative_fq_uids_path"
+    ] = "alternative_fq_uids"
+    # Purposely show that for the alternatives fq_uid branch, `username_type` does not matter. Even `None` would work
+    config_for_jwt_alternate_fq_uids["modules"][0]["config"]["oauth"][
+        "username_type"
+    ] = "user_id"
+
+    @synapsetest.override_config(config_for_jwt_alternate_fq_uids)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
+    async def test_valid_login_alternate_fq_uids(self, *args):
+        alternative_fq_uids_claims = deepcopy(default_claims)
+        # key is the same reference as what `alternative_fq_uids_path` is set to above in the config
+        alternative_fq_uids_claims["alternative_fq_uids"] = [
+            "@alice:example.test",
+            "@alice2:example.test",
+        ]
+
+        # Full mxids work if in the list above
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1[0] == "@alice:example.test"
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice2:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2[0] == "@alice2:example.test"
+
+        # localparts of an mxid work too
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3[0] == "@alice:example.test"
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice2", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4[0] == "@alice2:example.test"
+
+    @synapsetest.override_config(config_for_jwt_alternate_fq_uids)
+    async def test_invalid_login_alternate_fq_uids(self) -> None:
+        alternative_fq_uids_claims = deepcopy(default_claims)
+        # key is the same reference as what `alternative_fq_uids_path` is set to above in the config
+        alternative_fq_uids_claims["alternative_fq_uids"] = [
+            "@alice:example.test",
+            "@alice2:example.test",
+        ]
+
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        # Localparts don't either
+        result2 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+    @synapsetest.override_config(config_for_jwt_alternate_fq_uids)
+    async def test_alternate_fq_uids_path_not_a_list_is_invalid_and_cannot_be_used(
+        self,
+    ) -> None:
+        alternative_fq_uids_claims = deepcopy(default_claims)
+        # key is the same reference as what `alternative_fq_uids_path` is set to above in the config, but this time
+        # make sure it is not a list format
+        alternative_fq_uids_claims["alternative_fq_uids"] = "@alice:example.test"
+
+        token = get_jwt_token("aliceid", claims=alternative_fq_uids_claims)
+
+        # Full mxids won't work if they are not in the claims list
+        result1 = await self.hs.mockmod.check_oauth(
+            "@alice:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result1 is None
+
+        result2 = await self.hs.mockmod.check_oauth(
+            "@alice3:example.test", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result2 is None
+
+        # Localparts don't either
+        result3 = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result3 is None
+
+        result4 = await self.hs.mockmod.check_oauth(
+            "alice3", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result4 is None

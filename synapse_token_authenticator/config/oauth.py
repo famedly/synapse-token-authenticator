@@ -20,6 +20,7 @@ from synapse_token_authenticator.http_auth import (
     NoAuth,
     parse_auth,
 )
+from synapse_token_authenticator.utils import get_path_in_dict
 
 Path: TypeAlias = str | list[str]
 PathList: TypeAlias = Path | list[list[str]]
@@ -228,3 +229,62 @@ class OAuthConfig:
                 "Cannot have `alternative_fq_uid_path` defined on one form of validation with the other using a different `*_path`-like option."
             )
         return self
+
+    def should_use_alternative_fq_uids(self) -> bool:
+        """Simple bool for deciding to check for alternative fq user ids"""
+        return bool(
+            (self.jwt_validation and self.jwt_validation.alternative_fq_uids_path)
+            or (
+                self.introspection_validation
+                and self.introspection_validation.alternative_fq_uids_path
+            )
+        )
+
+    def get_value_in_jwt_claim_for_alternative_fq_uid_path_or_none(
+        self, value: str, claims_dict: dict
+    ) -> str | None:
+        """If the value is in the claims object at the alternative_fq_uid_path, return the value or None if it is not"""
+        if not self.jwt_validation or (
+            self.jwt_validation and not self.jwt_validation.alternative_fq_uids_path
+        ):
+            return None
+
+        # mypy seems to think that alternative_fq_uids_path can be None here
+        assert self.jwt_validation.alternative_fq_uids_path is not None
+        claim = get_path_in_dict(
+            self.jwt_validation.alternative_fq_uids_path, claims_dict
+        )
+        if claim is None:
+            return None
+
+        # if this is not a list, then the claim was messed up as it is supposed to be a list
+        assert isinstance(
+            claim, list
+        ), "Jwt claim for `alternative_fq_uid_path` must be a list"
+
+        return value if value in claim else None
+
+    def get_value_in_introspection_claim_for_alternative_fq_uid_path_or_none(
+        self, value: str, claims_dict: dict
+    ) -> str | None:
+        """If the value is in the claims object at the alternative_fq_uid_path, return the value or None if it is not"""
+        if not self.introspection_validation or (
+            self.introspection_validation
+            and not self.introspection_validation.alternative_fq_uids_path
+        ):
+            return None
+
+        # mypy seems to think that alternative_fq_uids_path can be None here
+        assert self.introspection_validation.alternative_fq_uids_path is not None
+        claim = get_path_in_dict(
+            self.introspection_validation.alternative_fq_uids_path, claims_dict
+        )
+        if claim is None:
+            return None
+
+        # if this is not a list, then the claim was messed up as it is supposed to be a list
+        assert isinstance(
+            claim, list
+        ), "Introspection claim for `alternative_fq_uid_path` must be a list"
+
+        return value if value in claim else None
