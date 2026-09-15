@@ -432,61 +432,84 @@ class TokenAuthenticator:
                 logger.info("Introspection response validation failed for a token")
                 return None
 
-        # getting localpart and fully qualified user_id, validate all sources for equality
-        username_type = oauth_config.username_type
+        # This is where the localpart and fully qualified user id are resolved. A username is provided from Synapse
+        # during the call to this function. This username can be a localpart directly or a fully qualified mxid.
+        #
+        # Our job is to extract what the provided username is, compare that it matches either the jwt claim or the
+        # introspection claim(and both if they are provided), raise if it doesn't and pass the localpart and fully
+        # qualified bits on to the next section.
 
         try:
-            # get localpart from each source
-            jwt_localpart = get_claim_from_validation(
-                jwt_claims, oauth_config.jwt_validation, "localpart_path"
-            )
-            introspection_localpart = get_claim_from_validation(
-                introspection_claims,
-                oauth_config.introspection_validation,
-                "localpart_path",
-            )
-            username_localpart = self._localpart_from_username(username, username_type)
-            # reconcile localpart from different sources
-            localpart = all_list_elems_are_equal_return_the_elem(
-                [
-                    jwt_localpart,
-                    introspection_localpart,
-                    username_localpart,
-                ]
-            )
-            # get fq_uid from each source
-            jwt_fq_uid = get_claim_from_validation(
-                jwt_claims, oauth_config.jwt_validation, "fq_uid_path"
-            )
-            introspection_fq_uid = get_claim_from_validation(
-                introspection_claims,
-                oauth_config.introspection_validation,
-                "fq_uid_path",
-            )
-            username_fq_uid = self._fq_uid_from_username(username, username_type)
-            # reconcile fq_uid from different sources
-            fully_qualified_uid = all_list_elems_are_equal_return_the_elem(
-                [
-                    jwt_fq_uid,
-                    introspection_fq_uid,
-                    username_fq_uid,
-                ]
-            )
-        except (ClaimsMismatchError, SynapseError) as e:
-            logger.info("%s", e)
-            return None
+            if oauth_config.should_use_alternative_fq_uids():
+                # This is included in the try block as an improperly formatted username can raise a SynapseError
+                username_fq_uid = self.api.get_qualified_user_id(username)
 
-        # A token must reference a user id itself. If neither token carries a
-        # localpart or fully qualified user id, the reconciled value would be
-        # sourced solely from the client-supplied username, which would let a
-        # holder of any valid token authenticate as an arbitrary user.
-        if (
-            jwt_localpart is None
-            and jwt_fq_uid is None
-            and introspection_localpart is None
-            and introspection_fq_uid is None
-        ):
-            logger.info("Neither token references a user id")
+                # The scope is currently only to resolve to a fully qualified user id(mxid). Ignore the localpart bits,
+                # set this to None, and it will be resolved further down.
+                localpart = None
+
+                # This can raise an TypeError(if the list in the claim we are searching for was not a list), or a
+                # ClaimMismatchError if the data is not found in an existing list. If the list just did not exist, it is
+                # a None.
+                fully_qualified_uid = oauth_config.search_claims_for_alternative_fq_uid(
+                    username_fq_uid, jwt_claims, introspection_claims
+                )
+
+            else:
+                username_type = oauth_config.username_type
+                # get localpart from each source
+                jwt_localpart = get_claim_from_validation(
+                    jwt_claims, oauth_config.jwt_validation, "localpart_path"
+                )
+                introspection_localpart = get_claim_from_validation(
+                    introspection_claims,
+                    oauth_config.introspection_validation,
+                    "localpart_path",
+                )
+                username_localpart = self._localpart_from_username(
+                    username, username_type
+                )
+                # reconcile localpart from different sources
+                localpart = all_list_elems_are_equal_return_the_elem(
+                    [
+                        jwt_localpart,
+                        introspection_localpart,
+                        username_localpart,
+                    ]
+                )
+                # get fq_uid from each source
+                jwt_fq_uid = get_claim_from_validation(
+                    jwt_claims, oauth_config.jwt_validation, "fq_uid_path"
+                )
+                introspection_fq_uid = get_claim_from_validation(
+                    introspection_claims,
+                    oauth_config.introspection_validation,
+                    "fq_uid_path",
+                )
+                username_fq_uid = self._fq_uid_from_username(username, username_type)
+                # reconcile fq_uid from different sources
+                fully_qualified_uid = all_list_elems_are_equal_return_the_elem(
+                    [
+                        jwt_fq_uid,
+                        introspection_fq_uid,
+                        username_fq_uid,
+                    ]
+                )
+                # A token must reference a user id itself. If neither token carries a
+                # localpart or fully qualified user id, the reconciled value would be
+                # sourced solely from the client-supplied username, which would let a
+                # holder of any valid token authenticate as an arbitrary user.
+                if (
+                    jwt_localpart is None
+                    and jwt_fq_uid is None
+                    and introspection_localpart is None
+                    and introspection_fq_uid is None
+                ):
+                    logger.info("Neither token references a user id")
+                    return None
+
+        except (TypeError, ClaimsMismatchError, SynapseError) as e:
+            logger.info("%s", e)
             return None
 
         if localpart is None and fully_qualified_uid is None:
@@ -499,14 +522,18 @@ class TokenAuthenticator:
         if fully_qualified_uid is None:
             fully_qualified_uid = self.api.get_qualified_user_id(localpart)
 
+        displayname = None
         try:
-            displayname = get_reconciled_claim(
-                jwt_claims,
-                introspection_claims,
-                oauth_config.jwt_validation,
-                oauth_config.introspection_validation,
-                "displayname_path",
-            )
+            if not oauth_config.should_use_alternative_fq_uids():
+                # Always ignore the displayname when using alternative user ids. Otherwise, this user may look like a
+                # new person every day!
+                displayname = get_reconciled_claim(
+                    jwt_claims,
+                    introspection_claims,
+                    oauth_config.jwt_validation,
+                    oauth_config.introspection_validation,
+                    "displayname_path",
+                )
             admin = get_reconciled_claim(
                 jwt_claims,
                 introspection_claims,

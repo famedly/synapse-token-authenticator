@@ -26,6 +26,7 @@ class TestJwtValidationConfig:
         assert config.require_expiry is False
         assert config.localpart_path is None
         assert config.fq_uid_path is None
+        assert config.alternative_fq_uids_path is None
         assert config.displayname_path is None
         assert config.admin_path is None
         assert config.email_path is None
@@ -126,6 +127,15 @@ class TestJwtValidationConfig:
         assert config.jwk_set is None
         assert config.jwks_endpoint == "https://idp.example/jwks"
 
+    def test_jwt_validation_config_alternative_fq_uids_path_fails_on_empty_string_or_list(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_set=get_jwk(), alternative_fq_uids_path="")
+
+        with pytest.raises(ValidationError):
+            JwtValidationConfig(jwk_set=get_jwk(), alternative_fq_uids_path=[])
+
 
 class TestIntrospectionValidationConfig:
     def test_introspection_validation_config_defaults(self):
@@ -166,6 +176,18 @@ class TestIntrospectionValidationConfig:
     def test_introspection_validation_config_missing_endpoint(self):
         with pytest.raises(ValidationError):
             IntrospectionValidationConfig()
+
+    def test_introspection_validation_config_alternative_fq_uids_path_fails_on_empty_string_or_list(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            IntrospectionValidationConfig(
+                endpoint="https://example.com", alternative_fq_uids_path=""
+            )
+        with pytest.raises(ValidationError):
+            IntrospectionValidationConfig(
+                endpoint="https://example.com", alternative_fq_uids_path=[]
+            )
 
 
 class TestNotifyOnRegistration:
@@ -312,3 +334,195 @@ class TestOAuthConfig:
         )
         assert config.jwt_validation is None
         assert config.introspection_validation is not None
+
+    def test_oauth_config_jwt_alternate_fq_uid_forbids_localpart_path(self):
+        # First check each subclass individually
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    localpart_path="localpart",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    localpart_path="localpart",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    endpoint="https://idp.example/introspect",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        # Then make sure conflicting options cannot be on the same subclass
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    localpart_path="localpart",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    localpart_path="localpart",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    endpoint="https://idp.example/introspect",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        # Then make sure the subclasses can not cross-conflict each other
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    localpart_path="localpart",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    localpart_path="localpart",
+                    require_expiry=True,
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    endpoint="https://idp.example/introspect",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+
+    def test_oauth_config_jwt_alternate_fq_uid_forbids_fq_uid_path(self):
+        # First check each subclass individually
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    fq_uid_path="fq_uid_path",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    fq_uid_path="fq_uid_path",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        # Then make sure conflicting options cannot be on the same subclass
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    fq_uid_path="fq_uid_path",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    fq_uid_path="fq_uid_path",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        # Then make sure the subclasses can not cross-conflict each other
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    require_expiry=True,
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    fq_uid_path="fq_uid_path",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )
+        with pytest.raises(ValidationError):
+            OAuthConfig(
+                jwt_validation=JwtValidationConfig(
+                    jwk_set=get_jwk(),
+                    fq_uid_path="fq_uid_path",
+                    require_expiry=True,
+                    required_scopes=["foo"],
+                ),
+                introspection_validation=IntrospectionValidationConfig(
+                    validator=["exist"],
+                    endpoint="https://idp.example/introspect",
+                    alternative_fq_uids_path="alternative_fq_uids_path",
+                    auth=["bearer", "tok"],
+                    displayname_path="name",
+                ),
+                username_type="localpart",
+            )

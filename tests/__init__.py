@@ -23,6 +23,7 @@ from urllib.parse import parse_qs
 
 from jwcrypto import jwe, jwk, jwt
 from synapse.server import HomeServer
+from synapse.types import JsonDict
 from synapse.util.clock import Clock
 from twisted.internet.testing import MemoryReactor
 from typing_extensions import override
@@ -287,7 +288,25 @@ def mock_idp_post(uri, data_raw, **kwargs):
     return Response(code=404)
 
 
-def mock_for_oauth(method, uri, data=None, **extrargs):
+payload: JsonDict = {
+    "active": True,
+    "localpart": "alice",
+    "scope": "bar foo",
+    "name": "Alice",
+    "roles": {
+        "OrgAdmin": ["123456"],
+        "Admin": ["123456"],
+        "MatrixAdmin": ["123456"],
+    },
+    "email": "alice@test.example",
+    "sub": "aliceid",
+    "iss": "http://test.example",
+}
+
+
+def _mock_for_oauth(
+    method, uri, payload_to_forward: JsonDict, data=None, **extrargs
+) -> Response:
     if (method, uri) == ("POST", "http://idp.test/introspect"):
         data = parse_qs(data.decode())
         if "token" in data:
@@ -295,22 +314,7 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
         else:
             logger.error("Bad introspect request: %s", data)
             return Response(code=400)
-        return Response.json(
-            payload={
-                "active": True,
-                "localpart": "alice",
-                "scope": "bar foo",
-                "name": "Alice",
-                "roles": {
-                    "OrgAdmin": ["123456"],
-                    "Admin": ["123456"],
-                    "MatrixAdmin": ["123456"],
-                },
-                "email": "alice@test.example",
-                "sub": "aliceid",
-                "iss": "http://test.example",
-            }
-        )
+        return Response.json(payload=payload_to_forward)
     if (method, uri) == ("POST", "http://iop.test/notify"):
         data = json.loads(data)
         if (
@@ -329,3 +333,17 @@ def mock_for_oauth(method, uri, data=None, **extrargs):
         return Response.json(payload=None)
     logger.error("Unknown request %s %s", method, uri)
     return Response(code=404)
+
+
+def mock_for_oauth(method, uri, data=None, **extrargs) -> Response:
+    return _mock_for_oauth(method, uri, payload, data, **extrargs)
+
+
+def mock_for_oauth_with_alternative_fq_uids_in_claim_payload(
+    method, uri, data=None, **extrargs
+) -> Response:
+    altered_payload = payload.copy()
+    altered_payload.update(
+        {"alternative_fq_uids": ["@alice:example.test", "@alice2:example.test"]}
+    )
+    return _mock_for_oauth(method, uri, altered_payload, data, **extrargs)
