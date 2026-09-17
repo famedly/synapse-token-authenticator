@@ -28,7 +28,7 @@ dependencies = [
   "twisted",
   "pydantic",
 ]
-version = "0.13.1"
+version = "0.14.0"
 
 [project.urls]
 Documentation = "https://github.com/famedly/synapse-token-authenticator"
