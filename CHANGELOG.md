@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.1] - 2026-09-18
+
+This release is to fix a problem in the Publish CI workflow. There is no functional difference compared to the prior
+release, `v0.14.0`.
+
 ## [0.14.0] - 2026-09-17
 
 ### General Notes
