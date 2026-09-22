@@ -548,6 +548,24 @@ Next you need to post this token to the `/login` endpoint of synapse. Be sure th
 }
 ```
 
+Flow diagram:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Web/Mobile Client
+
+    User->>App: Click "Log in"
+    create participant Synapse
+    App->>Synapse: POST /login submits<br> predetermined JWT<br> token data
+    create participant Mod as Synapse Token<br>Authenticator
+    Synapse->>Mod: Calls Token<br> Authenticator Module
+    Note over Mod: Verify correct fields in JWT<br> token data and validate data
+    destroy Mod
+    Mod->>Synapse: Returns success or failure
+    Synapse->>App: Returns Access<br> Token for Synapse
+```
+
 ### OIDC Authentication
 
 First, the user needs to obtain an Access token and an ID token from the IDP:
@@ -570,6 +588,88 @@ Next, the client needs to use these tokens and construct a payload to the login 
 }
 ```
 
+Flow diagram:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Web/Mobile Client
+    participant IDp
+
+    User->>App: Click "Log in with Provider"
+    App->>IDp: GET /authorize?response_type=code&client_id=...
+    IDp->>User: Prompt for login
+    User->>IDp: Submit credentials
+    IDp->>App: Respond with secret code
+    App->>IDp: POST /token (secret code, client_secret)
+    IDp->>App: Returns ID Token & JWT token data
+    Note over App: Client validates ID Token<br/>(JWT signature, exp, aud)
+    create participant Synapse
+    App->>Synapse: POST /login submit JWT token data
+    create participant Mod as Synapse Token<br>Authenticator
+    Synapse->>Mod: Calls Token<br> Authenticator Module
+    Mod->>IDp: Sends token data to introspection endpoint
+    IDp-->>Mod: Respond with introspection data to validate
+    Note over Mod: Validates JWT token introspection data
+    destroy Mod
+    Mod->>Synapse: Returns success or failure
+    Synapse->>App: Returns Access Token for Synapse
+```
+
+### OAUTH Authentication
+
+First, the user needs to obtain an Access token from the IDP:
+
+```http
+POST https://idp.example.org/oauth/v2/token
+
+```
+
+Next, the client needs to use this token and construct a payload to the login endpoint:
+
+```jsonc
+{
+  "type": "com.famedly.login.token.oauth",
+  "identifier": {
+    "type": "m.id.user",
+    "user": "alice" // The user's localpart, extracted from the localpart in the ID token returned by the IDP
+  },
+  "token": "<opaque access here>" // The access token returned by the IDP
+}
+```
+
+Flow diagram:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Web/Mobile Client
+    participant IDp
+
+    User->>App: Click "Log in with Provider"
+    App->>IDp: GET /authorize?response_type=code&client_id=...
+    IDp->>User: Prompt for login
+    User->>IDp: Submit credentials
+    IDp->>App: Respond with secret code
+    App->>IDp: POST /token (secret code, client_secret)
+    IDp->>App: Returns login package(JWT token data)
+    create participant Synapse
+    App->>Synapse: POST /login submit JWT token data
+    create participant Mod as Synapse Token<br>Authenticator
+    Synapse->>Mod: Calls Token<br> Authenticator Module
+    alt Optional JWKS Validation
+        Note over Mod: Optionally validates JWT from<br> IDp with declared JWKS
+    end
+    alt Optional introspection
+        Mod->>IDp: Send token data to introspection endpoint
+        IDp-->>Mod: Receive back introspection data to validate
+        Note over Mod: Validates JWT token introspection data
+    end
+    destroy Mod
+    Mod->>Synapse: Returns success or failure
+    Synapse->>App: Returns Access Token for Synapse
+```
+
 ### ePa Authentication
 
 First the user needs to obtain an access token from the idp. This token need to be signed and later encrypted ([JWE](https://datatracker.ietf.org/doc/html/rfc7516)).
@@ -588,6 +688,33 @@ Next, the client needs to use these tokens and construct a payload to the login 
 ```
 
 For this flow the `user` field will be ignored.
+
+Flow diagram:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Web/Mobile Client
+    participant IDp as Gematik Central IDp
+
+    User->>App: Click "Log in with EPa Card"
+    Note over App: App requests User tap EPa<br> card on back of reader device
+    App->>IDp: GET /authorize?...
+    IDp->>User: Prompt for 6 digit pin code
+    User->>IDp: User enters 6 digit pin code
+    IDp->>App: Respond with secret code
+    App->>IDp: POST /token (secret code, client_secret)
+    destroy IDp
+    IDp->>App: Returns login package(JWT token data)
+    create participant Synapse
+    App->>Synapse: POST /login submit JWT token data
+    create participant Mod as Synapse Token<br>Authenticator
+    Synapse->>Mod: Calls Token<br> Authenticator Module
+    Note over Mod: Extracts user information such<br> as displayname and MXID from JWT
+    destroy Mod
+    Mod->>Synapse: Returns success or failure
+    Synapse->>App: Returns Access Token for Synapse
+```
 
 ## Testing
 
