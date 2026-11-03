@@ -143,8 +143,11 @@ oauth:
 | `expose_metadata_resource` | Object with required `name` (String) (optional)                              |
 | `registration_enabled`     | Bool (defaults to `false`)                                                   |
 | `check_external_id`        | Bool (defaults to `true`)                                                    |
+| `require_external_id`      | Bool (defaults to `false`)                                                   |
 
 `jwt_validation` and `introspection_validation` contain several `*_path` optional fields. Each of these, if specified, will be used to source either localpart, fully qualified user id, admin permission, or email address from jwt claims and introspection response. The values will be compared for equality. If they differ, authentication will fail.
+
+`check_external_id` compares the token's `iss` and `sub` with the external ids stored for an existing account and refuses the login if none matches. An account with no stored external ids (for example one created via shared-secret registration) passes this check for any token that names it. Set `require_external_id: true` to refuse such logins as well; it only has an effect when `check_external_id` is enabled.
 
 **WARNING**: It is possible to configure in such a way that authentication would always fail. If neither `localpart_path` nor `fq_uid_path` are specified in any config section, then no user id data can be sourced for validation leading to failure.
 If `username_type` is `null`, but either `localpart_path` or `fq_uid_path` is provided, the authentication process can continue. However, if either `jwt_validation` and/or `introspection_validation` have `alternative_fq_uids_path` set then use of `localpart_path` or `fq_uid_path` in the other section is forbidden. `username_type` will be ignored if `alternative_fq_uids_path` is declared as only fully qualified user ids are currently supported.

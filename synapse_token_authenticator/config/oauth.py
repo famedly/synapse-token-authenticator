@@ -160,6 +160,7 @@ class OAuthConfig:
     expose_metadata_resource: dict | None = None
     registration_enabled: bool = False
     check_external_id: bool = True
+    require_external_id: bool = False
 
     @field_validator("expose_metadata_resource", mode="after")
     @classmethod
