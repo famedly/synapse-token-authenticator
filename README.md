@@ -37,6 +37,7 @@ Synapse Token Authenticator is a synapse auth provider which allows for token au
 - [Usage](#usage)
     - [JWT Authentication](#jwt-authentication)
     - [OIDC Authentication](#oidc-authentication)
+    - [OAUTH Authentication](#oauth-authentication)
     - [ePA Authentication](#epa-authentication)
 - [Testing](#testing)
 - [Releasing](#releasing)
@@ -552,18 +553,17 @@ Flow diagram:
 
 ```mermaid
 sequenceDiagram
-    actor User
     participant App as Web/Mobile Client
 
-    User->>App: Click "Log in"
+    Note over App: Click "Log in"
     create participant Synapse
     App->>Synapse: POST /login submits<br> predetermined JWT<br> token data
     create participant Mod as Synapse Token<br>Authenticator
     Synapse->>Mod: Calls Token<br> Authenticator Module
     Note over Mod: Verify correct fields in JWT<br> token data and validate data
     destroy Mod
-    Mod->>Synapse: Returns success or failure
-    Synapse->>App: Returns Access<br> Token for Synapse
+    Mod-->>Synapse: Returns success or failure
+    Synapse-->>App: Returns Access<br> Token for Synapse
 ```
 
 ### OIDC Authentication
@@ -592,28 +592,29 @@ Flow diagram:
 
 ```mermaid
 sequenceDiagram
-    actor User
     participant App as Web/Mobile Client
     participant IDp
+    participant Synapse
 
-    User->>App: Click "Log in with Provider"
+    Note over App: Click "Log in with Provider"
+    App->>Synapse: GET /_famedly/login/com.famedly.login.token.oidc
+    Synapse-->>App: Receive JSON Metadata
     App->>IDp: GET /authorize?response_type=code&client_id=...
-    IDp->>User: Prompt for login
-    User->>IDp: Submit credentials
-    IDp->>App: Respond with secret code
+    IDp-->>App: Prompt for login
+    App->>IDp: Submit credentials
+    IDp-->>App: Respond with secret code
     App->>IDp: POST /token (secret code, client_secret)
-    IDp->>App: Returns ID Token & JWT token data
+    IDp-->>App: Returns ID Token & JWT token data
     Note over App: Client validates ID Token<br/>(JWT signature, exp, aud)
-    create participant Synapse
     App->>Synapse: POST /login submit JWT token data
     create participant Mod as Synapse Token<br>Authenticator
     Synapse->>Mod: Calls Token<br> Authenticator Module
     Mod->>IDp: Sends token data to introspection endpoint
     IDp-->>Mod: Respond with introspection data to validate
-    Note over Mod: Validates JWT token introspection data
+    Mod->>Mod: Validates JWT token<br> introspection data
     destroy Mod
-    Mod->>Synapse: Returns success or failure
-    Synapse->>App: Returns Access Token for Synapse
+    Mod-->>Synapse: Returns success or failure
+    Synapse-->>App: Returns Access Token for Synapse
 ```
 
 ### OAUTH Authentication
@@ -642,32 +643,37 @@ Flow diagram:
 
 ```mermaid
 sequenceDiagram
-    actor User
     participant App as Web/Mobile Client
     participant IDp
 
-    User->>App: Click "Log in with Provider"
+    Note over App: Click "Log in with Provider"
     App->>IDp: GET /authorize?response_type=code&client_id=...
-    IDp->>User: Prompt for login
-    User->>IDp: Submit credentials
-    IDp->>App: Respond with secret code
+    IDp-->>App: Prompt for login
+    App->>IDp: Submit credentials
+    IDp-->>App: Respond with secret code
     App->>IDp: POST /token (secret code, client_secret)
-    IDp->>App: Returns login package(JWT token data)
+    IDp-->>App: Returns login package(JWT token data)
     create participant Synapse
     App->>Synapse: POST /login submit JWT token data
     create participant Mod as Synapse Token<br>Authenticator
     Synapse->>Mod: Calls Token<br> Authenticator Module
-    alt Optional JWKS Validation
-        Note over Mod: Optionally validates JWT from<br> IDp with declared JWKS
+    opt JWT Validation
+        opt
+            Mod->>IDp: Fetch from defined JWK Set endpoint
+            IDp-->>Mod: Receive JWK Set data
+        end
+        Note over Mod: Validates JWT from IDp with JWK Set
     end
-    alt Optional introspection
+    opt Introspection Validation
         Mod->>IDp: Send token data to introspection endpoint
         IDp-->>Mod: Receive back introspection data to validate
         Note over Mod: Validates JWT token introspection data
     end
+    Mod->>Mod: Resolve MXID from previous<br>Validation steps
+    Mod->>Mod: Check MXID exists
     destroy Mod
-    Mod->>Synapse: Returns success or failure
-    Synapse->>App: Returns Access Token for Synapse
+    Mod-->>Synapse: Returns success or failure
+    Synapse-->>App: Returns Access Token for Synapse
 ```
 
 ### ePa Authentication
@@ -693,27 +699,35 @@ Flow diagram:
 
 ```mermaid
 sequenceDiagram
-    actor User
     participant App as Web/Mobile Client
     participant IDp as Gematik Central IDp
 
-    User->>App: Click "Log in with EPa Card"
     Note over App: App requests User tap EPa<br> card on back of reader device
     App->>IDp: GET /authorize?...
-    IDp->>User: Prompt for 6 digit pin code
-    User->>IDp: User enters 6 digit pin code
-    IDp->>App: Respond with secret code
+    IDp-->>App: Prompt for 6 digit pin code
+    App->>IDp: User enters 6 digit pin code
+    IDp-->>App: Respond with secret code
     App->>IDp: POST /token (secret code, client_secret)
-    destroy IDp
-    IDp->>App: Returns login package(JWT token data)
     create participant Synapse
-    App->>Synapse: POST /login submit JWT token data
+    IDp->>Synapse: Request encryption keys from JWKS endpoint
+    Synapse-->>IDp: Receive encryption keys
+    Note over IDp: Encrypt JWE for login package
+    destroy IDp
+    IDp-->>App: Returns login package(JWE token data)
+    App->>Synapse: POST /login submit JWE token data
     create participant Mod as Synapse Token<br>Authenticator
     Synapse->>Mod: Calls Token<br> Authenticator Module
+    alt
+        Note over Mod:  Fetch JWKS from defined endpoint
+    end
+    alt
+        Note over Mod:  Use config defined JWKS
+    end
+    Note over Mod: Decrypts JWE using JWK
     Note over Mod: Extracts user information such<br> as displayname and MXID from JWT
     destroy Mod
-    Mod->>Synapse: Returns success or failure
-    Synapse->>App: Returns Access Token for Synapse
+    Mod-->>Synapse: Returns success or failure
+    Synapse-->>App: Returns Access Token for Synapse
 ```
 
 ## Testing
