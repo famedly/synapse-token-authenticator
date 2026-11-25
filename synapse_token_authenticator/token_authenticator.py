@@ -12,7 +12,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-import base64
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -20,7 +19,7 @@ from http import HTTPStatus
 from typing import Any
 
 from jwcrypto import jwk, jwt
-from jwcrypto.common import JWException, json_decode
+from jwcrypto.common import JWException, base64url_encode, json_decode
 from jwcrypto.jwk import JWK, JWKSet
 from synapse.api.errors import HttpResponseException, SynapseError
 from synapse.module_api import JsonDict, LoginResponse, ModuleApi
@@ -56,10 +55,11 @@ class TokenAuthenticator:
         self.config = config
         if self.config.jwt:
             if self.config.jwt.secret:
+                # The url encoding method from the stdlib `base64` lib will encode correctly, but does not strip the
+                # trailing `=` properly. The common version from `jwcrypto` lib does, and uses the `base64` version
+                # under the hood. `jwcrypto` v1.6.2 introduced stricter checking for this. Use their function instead.
                 k = {
-                    "k": base64.urlsafe_b64encode(
-                        self.config.jwt.secret.encode("utf-8")
-                    ).decode("utf-8"),
+                    "k": base64url_encode(self.config.jwt.secret.encode("utf-8")),
                     "kty": "oct",
                 }
                 self.key = jwk.JWK(**k)
