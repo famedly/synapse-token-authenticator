@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.2] - 20026-11-25
+
+This release is to fix base64 encoding being rejected for a configured JWT secret.
+
 ## [0.14.1] - 2026-09-18
 
 This release is to fix a problem in the Publish CI workflow. There is no functional difference compared to the prior

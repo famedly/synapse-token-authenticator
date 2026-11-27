@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 class TokenAuthenticator:
-    __version__ = "0.14.1"
+    __version__ = "0.14.2"
 
     def __init__(self, config: TokenAuthenticatorConfig, module_api: ModuleApi):
         self.api = module_api
