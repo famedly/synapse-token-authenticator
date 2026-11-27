@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import base64
 import json
 import logging
 import time
@@ -22,6 +21,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import parse_qs
 
 from jwcrypto import jwe, jwk, jwt
+from jwcrypto.common import base64url_encode
 from synapse.server import HomeServer
 from synapse.types import JsonDict
 from synapse.util.clock import Clock
@@ -153,7 +153,7 @@ class ModuleApiTestCase(synapsetest.HomeserverTestCase):
 
 def get_jwk(secret=_DEFAULT_TOKEN_SECRET, id_="123456") -> jwk.JWK:
     return jwk.JWK(
-        k=base64.urlsafe_b64encode(secret.encode("utf-8")).decode("utf-8"),
+        k=base64url_encode(secret.encode("utf-8")),
         kty="oct",
         kid=id_,
     )
