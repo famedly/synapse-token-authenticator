@@ -230,6 +230,7 @@ class TestOAuthConfig:
         assert config.expose_metadata_resource is None
         assert config.registration_enabled is False
         assert config.check_external_id is True
+        assert config.require_external_id is False
 
     def test_oauth_config_full(self):
         config = OAuthConfig(
@@ -257,6 +258,7 @@ class TestOAuthConfig:
             },
             registration_enabled=True,
             check_external_id=False,
+            require_external_id=True,
         )
 
         assert config.jwt_validation is not None
@@ -283,6 +285,7 @@ class TestOAuthConfig:
         }
         assert config.registration_enabled is True
         assert config.check_external_id is False
+        assert config.require_external_id is True
 
     def test_oauth_config_invalid_expose_metadata_resource(self):
         with pytest.raises(ValidationError):

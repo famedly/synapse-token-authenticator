@@ -621,10 +621,10 @@ class TokenAuthenticator:
 
         if oauth_config.check_external_id and user_exists:
             external_ids = await self._get_external_id(fully_qualified_uid)
-            if (
-                len(external_ids) > 0
-                and (auth_provider, external_id) not in external_ids
-            ):
+            # Without require_external_id, accounts with no stored ids (e.g. created
+            # out of band) are accepted for any token naming them.
+            must_match = len(external_ids) > 0 or oauth_config.require_external_id
+            if must_match and (auth_provider, external_id) not in external_ids:
                 logger.info("User didn't pass on the external id check")
                 logger.debug(
                     "The external_id '%s' and auth_provider '%s' don't match any of the user's stored external ids",

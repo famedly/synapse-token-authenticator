@@ -480,6 +480,63 @@ class CustomFlowTests(ModuleApiTestCase):
         )
         assert result[0] == "@alice:example.test"
 
+    config_for_require_external_id = deepcopy(config_for_jwt)
+    config_for_require_external_id["modules"][0]["config"]["oauth"][
+        "require_external_id"
+    ] = True
+
+    @synapsetest.override_config(config_for_require_external_id)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
+    async def test_login_require_external_id_no_stored_ids(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result is None
+
+    @synapsetest.override_config(config_for_jwt)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[],
+    )
+    async def test_login_no_stored_ids_without_require_external_id(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result[0] == "@alice:example.test"
+
+    @synapsetest.override_config(config_for_require_external_id)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[("http://test.example", "aliceid")],
+    )
+    async def test_login_require_external_id_match(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result[0] == "@alice:example.test"
+
+    @synapsetest.override_config(config_for_require_external_id)
+    @mock.patch(
+        "synapse_token_authenticator.TokenAuthenticator._get_external_id",
+        new_callable=mock.AsyncMock,
+        return_value=[("some_auth_provider", "some_external_id")],
+    )
+    async def test_login_require_external_id_mismatch(self, *args):
+        token = get_jwt_token("aliceid", claims=default_claims)
+        result = await self.hs.mockmod.check_oauth(
+            "alice", "com.famedly.login.token.oauth", {"token": token}
+        )
+        assert result is None
+
     config_for_introspection: JsonDict = {
         "modules": [
             {
